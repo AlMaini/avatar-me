@@ -8,6 +8,13 @@ export class TerminalInterface {
     this.lastCursorUpdate = Date.now();
     this.cursorBlinkInterval = 500; // 500ms blink interval
     this.isAnimating = false;
+    this.isLoadingAnimating = false;
+    this.isTyping = false;
+    this.loadingDots = 0;
+    this.lastLoadingUpdate = Date.now();
+    this.loadingInterval = 300; // 300ms between dots
+    this.loadingDuration = 3000; // Total loading time in ms
+    this.loadingStartTime = 0;
   }
 
   createInterface(scene) {
@@ -28,8 +35,8 @@ export class TerminalInterface {
     this.currentText = text;
     this.renderText();
     
-    // Start cursor animation if not already running
-    if (!this.isAnimating) {
+    // Start cursor animation if not already running and not loading
+    if (!this.isAnimating && !this.isLoadingAnimating) {
       this.startCursorAnimation();
     }
   }
@@ -48,12 +55,22 @@ export class TerminalInterface {
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     
-    // Always display the prompt and text (even if empty)
-    const displayText = `> ${this.currentText}`;
+    let displayText;
+    displayText = ""
+    
+    // Show loading animation if active
+    if (this.isLoadingAnimating) {
+      const dots = '.'.repeat(this.loadingDots);
+      displayText = `LOADING${dots}`;
+    } else if (this.isTyping) {
+      // Always display the prompt and text (even if empty)
+      displayText = `> ${this.currentText}`;
+    }
+    
     context.fillText(displayText, canvas.width/2, canvas.height/2);
     
-    // Draw cursor if it should be visible
-    if (this.cursorVisible) {
+    // Draw cursor if it should be visible and not loading
+    if (this.cursorVisible && this.isTyping && !this.isLoadingAnimating) {
       context.fillRect(canvas.width/2 + context.measureText(displayText).width/2 + 5, 
                       canvas.height/2 - 16, 3, 32);
     }
@@ -71,12 +88,29 @@ export class TerminalInterface {
     this.isAnimating = true;
     
     const animate = () => {
-      // Update cursor visibility based on time
       const now = Date.now();
-      if (now - this.lastCursorUpdate > this.cursorBlinkInterval) {
-        this.cursorVisible = !this.cursorVisible;
-        this.lastCursorUpdate = now;
-        this.renderText(); // Re-render with new cursor state
+      
+      // Handle loading animation
+      if (this.isLoadingAnimating) {
+        // Check if loading duration has elapsed
+        if (now - this.loadingStartTime >= this.loadingDuration) {
+          this.stopLoadingAnimation();
+          return;
+        }
+        
+        // Add dots continuously
+        if (now - this.lastLoadingUpdate > this.loadingInterval) {
+          this.loadingDots++;
+          this.lastLoadingUpdate = now;
+          this.renderText(); // Re-render with new loading state
+        }
+      } else {
+        // Update cursor visibility based on time
+        if (now - this.lastCursorUpdate > this.cursorBlinkInterval) {
+          this.cursorVisible = !this.cursorVisible;
+          this.lastCursorUpdate = now;
+          this.renderText(); // Re-render with new cursor state
+        }
       }
       
       if (this.isAnimating) {
@@ -85,6 +119,30 @@ export class TerminalInterface {
     };
     
     animate();
+  }
+
+  startLoadingAnimation(duration = null) {
+    this.isLoadingAnimating = true;
+    this.loadingDots = 0;
+    this.loadingStartTime = Date.now();
+    this.lastLoadingUpdate = Date.now();
+    if (duration) {
+      this.loadingDuration = duration;
+    }
+    this.renderText();
+  }
+
+  stopLoadingAnimation() {
+    this.isLoadingAnimating = false;
+    this.isTyping = true; // Enable normal text display
+    this.cursorVisible = true; // Ensure cursor starts visible
+    this.lastCursorUpdate = Date.now(); // Reset cursor timing
+    this.renderText();
+    
+    // Start cursor animation after loading completes
+    if (!this.isAnimating) {
+      this.startCursorAnimation();
+    }
   }
 
   createTextInput() {
@@ -110,6 +168,7 @@ export class TerminalInterface {
     
     textInput.addEventListener('input', (event) => {
       this.currentText = event.target.value;
+      this.isTyping = true; // Enable typing mode when user starts typing
       this.updateInterfaceWithText(this.currentText);
     });
     

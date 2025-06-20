@@ -60,9 +60,10 @@ async function init() {
     const light = sceneManager.getLight();
     const flickerTimeline = Animations.createLightFlicker(light, 150);
     
-    // flickerTimeline.then(() => {
-    //   Animations.createZoomAnimation(sceneManager.getCamera());
-    // });
+    // Start loading animation after flicker completes
+    flickerTimeline.eventCallback("onComplete", () => {
+      terminalInterface.startLoadingAnimation(3000); // 4 seconds of loading
+    });
     
     const loop = () => {
       sceneManager.update();
