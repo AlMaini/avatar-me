@@ -4,6 +4,10 @@ export class TerminalInterface {
   constructor() {
     this.currentText = '';
     this.interfacePlane = null;
+    this.cursorVisible = true;
+    this.lastCursorUpdate = Date.now();
+    this.cursorBlinkInterval = 500; // 500ms blink interval
+    this.isAnimating = false;
   }
 
   createInterface(scene) {
@@ -20,7 +24,17 @@ export class TerminalInterface {
 
   updateInterfaceWithText(text) {
     if (!this.interfacePlane) return;
+    
+    this.currentText = text;
+    this.renderText();
+    
+    // Start cursor animation if not already running
+    if (!this.isAnimating) {
+      this.startCursorAnimation();
+    }
+  }
 
+  renderText() {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     canvas.width = 512;
@@ -34,11 +48,15 @@ export class TerminalInterface {
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     
-    const displayText = `> ${text}`;
+    // Always display the prompt and text (even if empty)
+    const displayText = `> ${this.currentText}`;
     context.fillText(displayText, canvas.width/2, canvas.height/2);
     
-    context.fillRect(canvas.width/2 + context.measureText(displayText).width/2 + 5, 
-                    canvas.height/2 - 16, 3, 32);
+    // Draw cursor if it should be visible
+    if (this.cursorVisible) {
+      context.fillRect(canvas.width/2 + context.measureText(displayText).width/2 + 5, 
+                      canvas.height/2 - 16, 3, 32);
+    }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
@@ -47,6 +65,26 @@ export class TerminalInterface {
       map: texture,
       side: THREE.DoubleSide
     });
+  }
+
+  startCursorAnimation() {
+    this.isAnimating = true;
+    
+    const animate = () => {
+      // Update cursor visibility based on time
+      const now = Date.now();
+      if (now - this.lastCursorUpdate > this.cursorBlinkInterval) {
+        this.cursorVisible = !this.cursorVisible;
+        this.lastCursorUpdate = now;
+        this.renderText(); // Re-render with new cursor state
+      }
+      
+      if (this.isAnimating) {
+        requestAnimationFrame(animate);
+      }
+    };
+    
+    animate();
   }
 
   createTextInput() {
