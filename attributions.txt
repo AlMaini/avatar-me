@@ -1,0 +1,14 @@
+IBM Terminal by maxdragon from
+https://sketchfab.com/3d-models/ibm-3278-terminal-b0470478089a4462afb4d5c4dd827b22
+
+removed the screen png
+
+
+      .to(interfacePlane.scale, {
+        x: 2,
+        y: 2,
+        z: 2,
+      }, "<") // Scale the interface plane
+      .to(interfacePlane.position, {
+        y: 0,
+      }, "<")
