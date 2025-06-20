@@ -1,7 +1,7 @@
 import gsap from 'gsap';
 
 export class Animations {
-  static createLightFlicker(light, baseIntensity = 150) {
+  static createLightFlicker(light, baseIntensity = 300) {
     const flickerTimeline = gsap.timeline();
     
     flickerTimeline
@@ -49,29 +49,21 @@ export class Animations {
     return flickerTimeline;
   }
 
-  static createZoomAnimation(terminal, interfacePlane) {
+  static createZoomAnimation(camera) {
     return new Promise((resolve) => {
       const t1 = gsap.timeline({ 
-        defaults: { duration: 6 },
+        defaults: { duration: 2 },
         onComplete: resolve
       });
       
-      t1.to(terminal.scale, {
-        x: 0.8,
-        y: 0.8,
-        z: 0.8,
-      })
-      .to(terminal.position, {
-        y: -14,
-      }, "<")
-      .to(interfacePlane.scale, {
-        x: 2,
+      t1.to(camera.position, {
+        z: 15,
         y: 2,
-        z: 2,
-      }, "<")
-      .to(interfacePlane.position, {
-        y: 0,
-      }, "<");
+        ease: "power2.inOut",
+        onUpdate: () => {
+          camera.updateProjectionMatrix();
+        }
+      })
     });
   }
 }
