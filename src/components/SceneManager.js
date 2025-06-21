@@ -17,14 +17,16 @@ export class SceneManager {
     this.mouse = { x: 0, y: 0 };
     this.cameraPositions = {
       center: { x: 0, y: 0, z: 30 },
-      left: { x: -5, y: 0, z: 25 },
-      right: { x: 5, y: 0, z: 25 }
+      left: { x: 5, y: 0, z: 25 },
+      right: { x: -5, y: 0, z: 25 }
     };
     this.cameraRotations = {
       center: { x: 0, y: 0, z: 0 },
-      left: { x: 0, y: 0.2, z: 0 },
-      right: { x: 0, y: -0.2, z: 0 }
+      left: { x: 0, y: 0.65, z: 0 },
+      right: { x: 0, y: -0.65, z: 0 }
     };
+    this.cameraStates = ['left', 'center', 'right'];
+    this.currentCameraIndex = 1;
     this.currentCameraTarget = { ...this.cameraPositions.center };
     this.currentRotationTarget = { ...this.cameraRotations.center };
     
@@ -98,16 +100,38 @@ export class SceneManager {
   updateCameraTarget() {
     const threshold = 0.7;
     
+    // If already moving, don't allow another movement until timeout is complete
+    if (this.isMoving) return;
+    
     if (this.mouse.x > threshold) {
-      this.currentCameraTarget = { ...this.cameraPositions.right };
-      this.currentRotationTarget = { ...this.cameraRotations.right };
+      if (this.currentCameraIndex < this.cameraStates.length - 1) {
+        this.isMoving = true;
+        this.currentCameraIndex++;
+        this.updateCameraToCurrentState();
+        
+        // Reset moving flag after delay
+        setTimeout(() => {
+          this.isMoving = false;
+        }, 300); // 1 second delay
+      }
     } else if (this.mouse.x < -threshold) {
-      this.currentCameraTarget = { ...this.cameraPositions.left };
-      this.currentRotationTarget = { ...this.cameraRotations.left };
-    } else {
-      this.currentCameraTarget = { ...this.cameraPositions.center };
-      this.currentRotationTarget = { ...this.cameraRotations.center };
+      if (this.currentCameraIndex > 0) {
+        this.isMoving = true;
+        this.currentCameraIndex--;
+        this.updateCameraToCurrentState();
+        
+        // Reset moving flag after delay
+        setTimeout(() => {
+          this.isMoving = false;
+        }, 300); // 1 second delay
+      }
     }
+  }
+
+  updateCameraToCurrentState() {
+    const currentState = this.cameraStates[this.currentCameraIndex];
+    this.currentCameraTarget = { ...this.cameraPositions[currentState] };
+    this.currentRotationTarget = { ...this.cameraRotations[currentState] };
   }
 
   update() {
