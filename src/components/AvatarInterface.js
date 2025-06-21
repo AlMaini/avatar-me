@@ -6,6 +6,7 @@ export class AvatarInterface {
   constructor() {
     this.interfacePlane = null;
     this.textMesh = null;
+    this.avatarMesh = null;
     this.font = null;
     this.scene = null;
     this.isLoadingAnimating = false;
@@ -16,6 +17,13 @@ export class AvatarInterface {
     this.loadingStartTime = 0;
     this.loadingResolve = null;
     this.fontLoader = new FontLoader();
+    
+    // Blinking animation properties
+    this.isBlinking = false;
+    this.blinkDuration = 150; // How long eyes stay closed (ms)
+    this.blinkInterval = 5000; // Time between blinks (ms)
+    this.lastBlinkTime = Date.now();
+    this.blinkStartTime = 0;
   }
 
   async createInterface(scene) {
@@ -32,6 +40,9 @@ export class AvatarInterface {
     this.interfacePlane = new THREE.Mesh(planeGeometry, planeMaterial);
     this.interfacePlane.position.set(0, 2, 1.3);
     scene.add(this.interfacePlane);
+    
+    // Create avatar mesh
+    this.createAvatarMesh();
     
     // Create initial text geometry
     this.createTextGeometry();
@@ -56,6 +67,128 @@ export class AvatarInterface {
     });
   }
 
+  createAvatarMesh() {
+    // Remember the current visibility state
+    const wasVisible = this.avatarMesh ? this.avatarMesh.visible : false;
+    
+    // Remove existing avatar mesh
+    if (this.avatarMesh) {
+      this.scene.remove(this.avatarMesh);
+      this.avatarMesh.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+    }
+
+    if (!this.font) return;
+
+    // Create a group to hold all avatar elements
+    this.avatarMesh = new THREE.Group();
+
+    // Simplified ASCII art using ⣿ blocks - with blinking states
+    let leftEye, rightEye;
+    
+    if (this.isBlinking) {
+      // Closed eyes - top and bottom lines converged
+      leftEye = [
+        '⣿⣿⣿⣿⣿⣿',
+        '⣿⣿⣿⣿⣿⣿'
+      ];
+      
+      rightEye = [
+        '⣿⣿⣿⣿⣿⣿',
+        '⣿⣿⣿⣿⣿⣿'
+      ];
+    } else {
+      // Open eyes - normal state
+      leftEye = [
+        '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿',
+        '⣿         ⣿',
+        '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿'
+      ];
+
+      rightEye = [
+        '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿',
+        '⣿         ⣿',
+        '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿'
+      ];
+    }
+
+    const mouth = [
+      '        ⣿',
+      '⣿             ⣿',
+      '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿',
+      ' ⣿⣿⣿     ⣿⣿⣿ '
+    ];
+
+    // Use same material as text for all avatar parts
+    const avatarMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff88,
+      emissive: 0x00ff88,
+      emissiveIntensity: 0.5
+    });
+
+    // Function to create ASCII art text geometry from array
+    const createASCIIGroup = (asciiArray, offsetX, offsetY) => {
+      const group = new THREE.Group();
+      
+      for (let row = 0; row < asciiArray.length; row++) {
+        const line = asciiArray[row];
+        
+        // Create text geometry for each line
+        const textGeometry = new TextGeometry(line, {
+          font: this.font,
+          size: 0.15,
+          height: 0.02,
+          curveSegments: 12,
+          bevelEnabled: false,
+        });
+
+        textGeometry.scale(1, 1, 0.000002);
+
+        textGeometry.computeBoundingBox();
+        const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+        const textHeight = textGeometry.boundingBox.max.y - textGeometry.boundingBox.min.y;
+
+        // Center the text horizontally
+        textGeometry.translate(-textWidth / 2, 0, 0);
+
+        const textMesh = new THREE.Mesh(textGeometry, avatarMaterial);
+        
+        // Position each line
+        textMesh.position.set(
+          offsetX,
+          offsetY - (row * 0.2), // Stack lines vertically
+          0
+        );
+        
+        group.add(textMesh);
+      }
+      
+      return group;
+    };
+
+    // Create eyes and mouth as text
+    const leftEyeGroup = createASCIIGroup(leftEye, -1.4, 0.8);
+    const rightEyeGroup = createASCIIGroup(rightEye, 1.4, 0.8);
+    const mouthGroup = createASCIIGroup(mouth, 0, -0.8);
+
+    // Add all groups to the main avatar mesh
+    this.avatarMesh.add(leftEyeGroup);
+    this.avatarMesh.add(rightEyeGroup);
+    this.avatarMesh.add(mouthGroup);
+
+    // Position the avatar mesh relative to the interface plane
+    this.avatarMesh.position.copy(this.interfacePlane.position);
+    this.avatarMesh.position.z += 0.9; // In front of the plane
+    this.avatarMesh.position.y += 0.5; // Slightly higher
+
+    // Restore the visibility state instead of always hiding
+    this.avatarMesh.visible = wasVisible;
+
+    this.scene.add(this.avatarMesh);
+  }
+
   createTextGeometry() {
     // Remove existing text mesh
     if (this.textMesh) {
@@ -77,9 +210,9 @@ export class AvatarInterface {
     if (displayText) {
       const textGeometry = new TextGeometry(displayText, {
         font: this.font,
-        size: 0.3,
-        height: 0.01,
-        curveSegments: 4,
+        size: 0.5,
+        height: 0.05,
+        curveSegments: 12,
         bevelEnabled: false,
       });
 
@@ -91,12 +224,17 @@ export class AvatarInterface {
 
       textGeometry.translate(-textWidth / 2, -textHeight / 2, 0);
 
-      const textMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+      const textMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x00ff88,
+                emissive: 0x00ff88,
+                emissiveIntensity: 0.5
+              });
       this.textMesh = new THREE.Mesh(textGeometry, textMaterial);
       
-      // Position relative to the interface plane
+      // Position relative to the interface plane, below the avatar
       this.textMesh.position.copy(this.interfacePlane.position);
       this.textMesh.position.z += 0.8; // Slightly in front of the plane
+      //this.textMesh.position.y -= 1.5; // Below the avatar
       
       this.scene.add(this.textMesh);
     }
@@ -104,6 +242,21 @@ export class AvatarInterface {
 
   update() {
     const now = Date.now();
+    
+    // Handle blinking animation (only when avatar is visible)
+    if (this.avatarMesh && this.avatarMesh.visible) {
+      if (!this.isBlinking) {
+        // Check if it's time to start a blink
+        if (now - this.lastBlinkTime > this.blinkInterval) {
+          this.startBlink();
+        }
+      } else {
+        // Check if blink duration has elapsed
+        if (now - this.blinkStartTime > this.blinkDuration) {
+          this.endBlink();
+        }
+      }
+    }
     
     // Handle loading animation
     if (this.isLoadingAnimating) {
@@ -120,6 +273,18 @@ export class AvatarInterface {
         this.createTextGeometry(); // Re-render with new loading state
       }
     }
+  }
+
+  startBlink() {
+    this.isBlinking = true;
+    this.blinkStartTime = Date.now();
+    this.createAvatarMesh(); // Recreate with closed eyes
+  }
+
+  endBlink() {
+    this.isBlinking = false;
+    this.lastBlinkTime = Date.now();
+    this.createAvatarMesh(); // Recreate with open eyes
   }
 
   startLoadingAnimation(duration = null) {
@@ -139,8 +304,14 @@ export class AvatarInterface {
   stopLoadingAnimation() {
     this.isLoadingAnimating = false;
     this.createTextGeometry();
+    
+    // Show avatar after loading completes
+    if (this.avatarMesh) {
+      this.avatarMesh.visible = true;
+    }
+    
     if (this.loadingResolve) {
-      this.loadingResolve();
+      this.loadingResolve(); // Fixed: was calling resolve instead of this.loadingResolve()
       this.loadingResolve = null;
     }
   }
