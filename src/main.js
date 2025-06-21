@@ -1,6 +1,7 @@
 import { SceneManager } from './components/SceneManager.js';
 import { ModelLoader } from './components/ModelLoader.js';
 import { TerminalInterface} from './components/TerminalInterface.js';
+import { AvatarInterface } from './components/AvatarInterface.js';
 import { createAvatarMesh, createInterfaceMesh } from './components/ModelCreator.js';
 import { PostProcessing } from './components/PostProcessing.js';
 import { Animations } from './components/Animations.js';
@@ -11,6 +12,7 @@ let monitor_right;
 let monitor_left
 let sceneManager;
 let terminalInterface;
+let avatarInterface;
 let postProcessing;
 let modelLoader;
 
@@ -38,7 +40,8 @@ async function init() {
     monitor_rightInterface.position.set(10, 1, 5);
     monitor_rightInterface.rotateY(-0.65);
 
-    const monitor_avatar = createAvatarMesh(sceneManager.getScene());
+    avatarInterface = new AvatarInterface();
+    await avatarInterface.createInterface(sceneManager.getScene());
     
 
 
@@ -63,12 +66,15 @@ async function init() {
     
     // Start loading animation after flicker completes
     flickerTimeline.eventCallback("onComplete", () => {
-      terminalInterface.startLoadingAnimation(3000); // 5 seconds of loading
-      //const zoomingAnimation = Animations.createZoomAnimation(sceneManager.getCamera());
+      avatarInterface.startLoadingAnimation(2000).then(() => {
+      terminalInterface.isTyping = true;
+      terminalInterface.updateInterfaceWithText("");
+      });
     });
 
     const loop = () => {
       sceneManager.update();
+      avatarInterface.update();
       postProcessing.render();
       requestAnimationFrame(loop);
     };

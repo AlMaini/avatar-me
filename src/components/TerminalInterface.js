@@ -8,6 +8,7 @@ export class TerminalInterface {
     this.interfacePlane = null;
     this.textMesh = null;
     this.cursorMesh = null;
+    this.interfaceGroup = null;
     this.font = null;
     this.scene = null;
     this.cursorVisible = true;
@@ -22,6 +23,14 @@ export class TerminalInterface {
     this.loadingDuration = 3000; // Total loading time in ms
     this.loadingStartTime = 0;
     this.fontLoader = new FontLoader();
+    // Interface dimensions for text wrapping
+    this.interfaceWidth = 10;
+    this.interfaceHeight = 8;
+    this.maxCharsPerLine = 35; // Approximate chars per line
+    this.lineHeight = 0.5;
+    this.currentLine = 0;
+    this.textLines = [];
+    this.updateTimeout = null;
   }
 
   async createInterface(scene) {
@@ -30,21 +39,26 @@ export class TerminalInterface {
     // Load the font first
     await this.loadFont();
     
-    const planeGeometry = new THREE.BoxGeometry(10, 8, 2);
+    // Create a group to hold all interface elements
+    this.interfaceGroup = new THREE.Group();
+    this.interfaceGroup.position.set(-10, 1, 5);
+    this.interfaceGroup.rotateY(0.65); // Rotate to face the camera
+    
+    const planeGeometry = new THREE.BoxGeometry(this.interfaceWidth, this.interfaceHeight, 2);
     const planeMaterial = new THREE.MeshBasicMaterial({ 
       color: 0x000000,
       side: THREE.DoubleSide
     });
     this.interfacePlane = new THREE.Mesh(planeGeometry, planeMaterial);
-    this.interfacePlane.position.set(-10, 1, 5);
-    this.interfacePlane.rotateY(0.65); // Rotate to face the camera
-    scene.add(this.interfacePlane);
+    this.interfaceGroup.add(this.interfacePlane);
+    
+    scene.add(this.interfaceGroup);
     
     // Create initial text geometry
     this.createTextGeometry();
     this.createCursorGeometry();
     
-    return this.interfacePlane;
+    return this.interfaceGroup;
   }
 
   loadFont() {
@@ -64,53 +78,142 @@ export class TerminalInterface {
     });
   }
 
+  wrapText(text, maxCharsPerLine) {
+    if (text.length <= maxCharsPerLine) {
+      return [text];
+    }
+    
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (let word of words) {
+      // Handle words longer than maxCharsPerLine
+      while (word.length > maxCharsPerLine) {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = '';
+        }
+        lines.push(word.substring(0, maxCharsPerLine));
+        word = word.substring(maxCharsPerLine);
+      }
+      
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      
+      if (testLine.length <= maxCharsPerLine) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = word;
+        }
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines.length > 0 ? lines : [''];
+  }
+  
   createTextGeometry() {
     if (!this.font) return;
     
     // Remove existing text mesh if it exists
     if (this.textMesh) {
-      this.scene.remove(this.textMesh);
-      this.textMesh.geometry.dispose();
-      this.textMesh.material.dispose();
+      this.interfaceGroup.remove(this.textMesh);
+      // Properly dispose of all child geometries and materials
+      this.textMesh.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+      this.textMesh = null;
     }
     
     let displayText = "";
     
-    // Show loading animation if active
-    if (this.isLoadingAnimating) {
-      const dots = '.'.repeat(this.loadingDots);
-      displayText = `LOADING${dots}`;
-    } else if (this.isTyping) {
+    if (this.isTyping) {
       displayText = `> ${this.currentText}`;
+      this.textLines = this.wrapText(displayText, this.maxCharsPerLine);
+    } else {
+      this.textLines = [];
     }
     
-    if (displayText) {
-      const textGeometry = new TextGeometry(displayText, {
-        font: this.font,
-        size: 0.3,
-        height: 0.05,
-        curveSegments: 12,
-        bevelEnabled: false
-      });
-      textGeometry.scale(1, 1, 0.000002);
-      // Center the text
-      textGeometry.computeBoundingBox();
-      const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
-      textGeometry.translate(-textWidth / 2, 0, 0);
+    // Debug logging
+    console.log('Display text:', displayText);
+    console.log('Text lines:', this.textLines);
+    
+    // Create text mesh group for multi-line text
+    if (this.textLines.length > 0) {
+      this.textMesh = new THREE.Group();
       
-      const textMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x00ff88,
-        emissive: 0x00ff88,
-        emissiveIntensity: 1
-      });
-      this.textMesh = new THREE.Mesh(textGeometry, textMaterial);
-      this.textMesh.position.set(-10, 1, 9); // Slightly in front of the terminal plane
-      this.textMesh.rotateY(0.65); // Match plane rotation
-      this.scene.add(this.textMesh);
+      const maxLines = Math.floor(this.interfaceHeight / this.lineHeight) - 1;
+      const visibleLines = this.textLines.slice(-maxLines);
       
-      // Update cursor position
-      this.updateCursorPosition(textWidth);
+      visibleLines.forEach((line, index) => {
+        const textGeometry = new TextGeometry(line || ' ', {
+          font: this.font,
+          size: 0.3,
+          height: 0.05,
+          curveSegments: 12,
+          bevelEnabled: false
+        });
+        
+        textGeometry.computeBoundingBox();
+        
+        // Position text within interface bounds
+        const startX = -this.interfaceWidth / 2 + 1;
+        const startY = this.interfaceHeight / 2 - 1 - (index * this.lineHeight);
+        
+        textGeometry.translate(startX, startY, 0);
+        
+        const textMaterial = new THREE.MeshBasicMaterial({ 
+          color: 0x00ff88,
+          emissive: 0x00ff88,
+          emissiveIntensity: 0.5
+        });
+        
+        const lineMesh = new THREE.Mesh(textGeometry, textMaterial);
+        lineMesh.position.z = 0;
+        lineMesh.scale.set(1, 1, 0.001);
+        this.textMesh.add(lineMesh);
+      });
+      
+      this.textMesh.position.set(0, 0, 1.1);
+      this.interfaceGroup.add(this.textMesh);
+      
+      // Update cursor position for the last line
+      this.currentLine = visibleLines.length - 1;
+      const lastLine = visibleLines[visibleLines.length - 1] || '';
+      this.updateCursorPosition(lastLine);
+    } else {
+      // If no text lines, position cursor at the beginning of prompt
+      this.currentLine = 0;
+      this.updateCursorPosition('> ');
     }
+  }
+  
+  updateInterfaceWithText(text) {
+    if (!this.interfacePlane || !this.font) return;
+    
+    this.currentText = text;
+    
+    // Add a small delay to prevent rapid re-creation
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+    }
+    
+    this.updateTimeout = setTimeout(() => {
+      this.createTextGeometry();
+      
+      // Start cursor animation if not already running and not loading
+      if (!this.isAnimating && !this.isLoadingAnimating) {
+        this.startCursorAnimation();
+      }
+    }, 16); // ~60fps
   }
 
   createCursorGeometry() {
@@ -118,37 +221,43 @@ export class TerminalInterface {
     
     // Remove existing cursor mesh if it exists
     if (this.cursorMesh) {
-      this.scene.remove(this.cursorMesh);
+      this.interfaceGroup.remove(this.cursorMesh);
       this.cursorMesh.geometry.dispose();
       this.cursorMesh.material.dispose();
     }
     
-    const cursorGeometry = new THREE.BoxGeometry(0.02, 0.4, 0.05);
+    const cursorGeometry = new THREE.BoxGeometry(0.02, 0.3, 0.05);
     cursorGeometry.scale(1, 1, 0.000002); // Match text scale
-    const cursorMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+    const cursorMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff88,
+      emissive: 0x00ff88,
+      emissiveIntensity: 0.5
+    });
     this.cursorMesh = new THREE.Mesh(cursorGeometry, cursorMaterial);
-    this.cursorMesh.position.set(-10, 1.15, 9.1); // Base position
-    this.cursorMesh.rotateY(0.65); // Match text rotation
-    this.scene.add(this.cursorMesh);
+    this.cursorMesh.position.set(0, 0, 1.1); // Base position within group
+    this.interfaceGroup.add(this.cursorMesh);
   }
 
-  updateCursorPosition(textWidth) {
+  updateCursorPosition(lastLineText) {
     if (this.cursorMesh && this.isTyping && !this.isLoadingAnimating) {
-      // Position cursor at the end of the text
-      // Since text is centered, cursor should be at textWidth/2 from center
-      this.cursorMesh.position.x = -10 + (textWidth / 2) + 0.1; // Base position + text width + small offset
-    }
-  }
-
-  updateInterfaceWithText(text) {
-    if (!this.interfacePlane || !this.font) return;
-    
-    this.currentText = text;
-    this.createTextGeometry();
-    
-    // Start cursor animation if not already running and not loading
-    if (!this.isAnimating && !this.isLoadingAnimating) {
-      this.startCursorAnimation();
+      // Calculate cursor position based on last line text length
+      const charWidth = 0.21; // Approximate character width
+      const textLength = lastLineText.length;
+      
+      // Position cursor at the end of the last line
+      const startX = -this.interfaceWidth / 2 + 1; // Match text start position
+      const startY = this.interfaceHeight / 2 - 1 - (this.currentLine * this.lineHeight);
+      
+      this.cursorMesh.position.x = startX + (textLength * charWidth) + 0.05;
+      this.cursorMesh.position.y = startY + 0.15;
+      
+      // Keep cursor within bounds - but allow it to move to next line if needed
+      const maxX = this.interfaceWidth / 2 - 0.3;
+      if (this.cursorMesh.position.x > maxX) {
+        // If cursor would go beyond bounds, it should be on the next line
+        // This is handled by the text wrapping, so just clamp to max position
+        this.cursorMesh.position.x = maxX;
+      }
     }
   }
 
@@ -229,7 +338,7 @@ export class TerminalInterface {
     const textInput = document.createElement('input');
     textInput.type = 'text';
     textInput.placeholder = 'Type your command...';
-    textInput.maxLength = 30;
+    textInput.maxLength = 100;
     textInput.style.cssText = `
       position: absolute;
       bottom: 20px;
