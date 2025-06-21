@@ -1,7 +1,7 @@
 import { SceneManager } from './components/SceneManager.js';
 import { ModelLoader } from './components/ModelLoader.js';
 import { TerminalInterface} from './components/TerminalInterface.js';
-import { createInterfaceMesh } from './components/ModelCreator.js';
+import { createAvatarMesh, createInterfaceMesh } from './components/ModelCreator.js';
 import { PostProcessing } from './components/PostProcessing.js';
 import { Animations } from './components/Animations.js';
 import { loadCustomFont } from './utils/FontLoader.js';
@@ -31,14 +31,15 @@ async function init() {
     monitor_left.rotateY(1.3);
     
     terminalInterface = new TerminalInterface();
-    const interfacePlane = terminalInterface.createInterface(sceneManager.getScene());
+    const interfacePlane = await terminalInterface.createInterface(sceneManager.getScene());
+    
+    
     const monitor_rightInterface = createInterfaceMesh(sceneManager.getScene());
     monitor_rightInterface.position.set(10, 1, 5);
     monitor_rightInterface.rotateY(-0.65);
 
-    const monitor_leftInterface = createInterfaceMesh(sceneManager.getScene());
-    monitor_leftInterface.position.set(-10, 1, 5);
-    monitor_leftInterface.rotateY(0.65);
+    const monitor_avatar = createAvatarMesh(sceneManager.getScene());
+    
 
 
     postProcessing = new PostProcessing(
@@ -62,16 +63,16 @@ async function init() {
     
     // Start loading animation after flicker completes
     flickerTimeline.eventCallback("onComplete", () => {
-      terminalInterface.startLoadingAnimation(3000); // 4 seconds of loading
+      terminalInterface.startLoadingAnimation(3000); // 5 seconds of loading
+      //const zoomingAnimation = Animations.createZoomAnimation(sceneManager.getCamera());
     });
-    
+
     const loop = () => {
       sceneManager.update();
       postProcessing.render();
       requestAnimationFrame(loop);
     };
     loop();
-    
   } catch (error) {
     console.error('Error loading resources:', error);
   }

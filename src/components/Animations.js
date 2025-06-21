@@ -1,7 +1,7 @@
 import gsap from 'gsap';
 
 export class Animations {
-  static createLightFlicker(light, baseIntensity = 300) {
+  static createLightFlicker(light, baseIntensity = 150) {
     const flickerTimeline = gsap.timeline();
     
     flickerTimeline
@@ -52,12 +52,12 @@ export class Animations {
   static createZoomAnimation(camera) {
     return new Promise((resolve) => {
       const t1 = gsap.timeline({ 
-        defaults: { duration: 2 },
+        defaults: { duration: 5 },
         onComplete: resolve
       });
       
       t1.to(camera.position, {
-        z: 15,
+        z: 12,
         y: 2,
         ease: "power2.inOut",
         onUpdate: () => {

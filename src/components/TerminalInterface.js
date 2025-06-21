@@ -1,9 +1,15 @@
 import * as THREE from 'three';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 
 export class TerminalInterface {
   constructor() {
     this.currentText = '';
     this.interfacePlane = null;
+    this.textMesh = null;
+    this.cursorMesh = null;
+    this.font = null;
+    this.scene = null;
     this.cursorVisible = true;
     this.lastCursorUpdate = Date.now();
     this.cursorBlinkInterval = 500; // 500ms blink interval
@@ -15,25 +21,130 @@ export class TerminalInterface {
     this.loadingInterval = 300; // 300ms between dots
     this.loadingDuration = 3000; // Total loading time in ms
     this.loadingStartTime = 0;
+    this.fontLoader = new FontLoader();
   }
 
-  createInterface(scene) {
-    const planeGeometry = new THREE.BoxGeometry(7, 6, 2);
+  async createInterface(scene) {
+    this.scene = scene;
+    
+    // Load the font first
+    await this.loadFont();
+    
+    const planeGeometry = new THREE.BoxGeometry(10, 8, 2);
     const planeMaterial = new THREE.MeshBasicMaterial({ 
       color: 0x000000,
       side: THREE.DoubleSide
     });
     this.interfacePlane = new THREE.Mesh(planeGeometry, planeMaterial);
-    this.interfacePlane.position.set(0, 2, 1);
+    this.interfacePlane.position.set(-10, 1, 5);
+    this.interfacePlane.rotateY(0.65); // Rotate to face the camera
     scene.add(this.interfacePlane);
+    
+    // Create initial text geometry
+    this.createTextGeometry();
+    this.createCursorGeometry();
+    
     return this.interfacePlane;
   }
 
+  loadFont() {
+    return new Promise((resolve, reject) => {
+      this.fontLoader.load(
+        '/fonts/Glass TTY VT220_Medium.json',
+        (font) => {
+          this.font = font;
+          resolve(font);
+        },
+        undefined,
+        (error) => {
+          console.error('Error loading font:', error);
+          reject(error);
+        }
+      );
+    });
+  }
+
+  createTextGeometry() {
+    if (!this.font) return;
+    
+    // Remove existing text mesh if it exists
+    if (this.textMesh) {
+      this.scene.remove(this.textMesh);
+      this.textMesh.geometry.dispose();
+      this.textMesh.material.dispose();
+    }
+    
+    let displayText = "";
+    
+    // Show loading animation if active
+    if (this.isLoadingAnimating) {
+      const dots = '.'.repeat(this.loadingDots);
+      displayText = `LOADING${dots}`;
+    } else if (this.isTyping) {
+      displayText = `> ${this.currentText}`;
+    }
+    
+    if (displayText) {
+      const textGeometry = new TextGeometry(displayText, {
+        font: this.font,
+        size: 0.3,
+        height: 0.05,
+        curveSegments: 12,
+        bevelEnabled: false
+      });
+      textGeometry.scale(1, 1, 0.000002);
+      // Center the text
+      textGeometry.computeBoundingBox();
+      const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+      textGeometry.translate(-textWidth / 2, 0, 0);
+      
+      const textMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x00ff88,
+        emissive: 0x00ff88,
+        emissiveIntensity: 1
+      });
+      this.textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      this.textMesh.position.set(-10, 1, 9); // Slightly in front of the terminal plane
+      this.textMesh.rotateY(0.65); // Match plane rotation
+      this.scene.add(this.textMesh);
+      
+      // Update cursor position
+      this.updateCursorPosition(textWidth);
+    }
+  }
+
+  createCursorGeometry() {
+    if (!this.font) return;
+    
+    // Remove existing cursor mesh if it exists
+    if (this.cursorMesh) {
+      this.scene.remove(this.cursorMesh);
+      this.cursorMesh.geometry.dispose();
+      this.cursorMesh.material.dispose();
+    }
+    
+    const cursorGeometry = new THREE.BoxGeometry(0.02, 0.4, 0.05);
+    cursorGeometry.scale(1, 1, 0.000002); // Match text scale
+    const cursorMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+    this.cursorMesh = new THREE.Mesh(cursorGeometry, cursorMaterial);
+    this.cursorMesh.position.set(-10, 1.15, 9.1); // Base position
+    this.cursorMesh.rotateY(0.65); // Match text rotation
+    this.scene.add(this.cursorMesh);
+  }
+
+  updateCursorPosition(textWidth) {
+    if (this.cursorMesh && this.isTyping && !this.isLoadingAnimating) {
+      // Position cursor at the end of the text
+      // Since text is centered, cursor should be at textWidth/2 from center
+      this.cursorMesh.position.x = -10 + (textWidth / 2) + 0.1; // Base position + text width + small offset
+    }
+  }
+
   updateInterfaceWithText(text) {
-    if (!this.interfacePlane) return;
+    if (!this.interfacePlane || !this.font) return;
     
     this.currentText = text;
-    this.renderText();
+    this.createTextGeometry();
     
     // Start cursor animation if not already running and not loading
     if (!this.isAnimating && !this.isLoadingAnimating) {
@@ -41,48 +152,6 @@ export class TerminalInterface {
     }
   }
 
-  renderText() {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = 512;
-    canvas.height = 384;
-
-    context.fillStyle = '#000000';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    
-    context.fillStyle = '#00ff88';
-    context.font = 'bold 32px CustomTerminal, monospace';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    
-    let displayText;
-    displayText = ""
-    
-    // Show loading animation if active
-    if (this.isLoadingAnimating) {
-      const dots = '.'.repeat(this.loadingDots);
-      displayText = `LOADING${dots}`;
-    } else if (this.isTyping) {
-      // Always display the prompt and text (even if empty)
-      displayText = `> ${this.currentText}`;
-    }
-    
-    context.fillText(displayText, canvas.width/2, canvas.height/2);
-    
-    // Draw cursor if it should be visible and not loading
-    if (this.cursorVisible && this.isTyping && !this.isLoadingAnimating) {
-      context.fillRect(canvas.width/2 + context.measureText(displayText).width/2 + 5, 
-                      canvas.height/2 - 16, 3, 32);
-    }
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    
-    this.interfacePlane.material = new THREE.MeshBasicMaterial({ 
-      map: texture,
-      side: THREE.DoubleSide
-    });
-  }
 
   startCursorAnimation() {
     this.isAnimating = true;
@@ -102,14 +171,17 @@ export class TerminalInterface {
         if (now - this.lastLoadingUpdate > this.loadingInterval) {
           this.loadingDots++;
           this.lastLoadingUpdate = now;
-          this.renderText(); // Re-render with new loading state
+          this.createTextGeometry(); // Re-render with new loading state
         }
       } else {
         // Update cursor visibility based on time
         if (now - this.lastCursorUpdate > this.cursorBlinkInterval) {
           this.cursorVisible = !this.cursorVisible;
           this.lastCursorUpdate = now;
-          this.renderText(); // Re-render with new cursor state
+          // Toggle cursor visibility in 3D
+          if (this.cursorMesh) {
+            this.cursorMesh.visible = this.cursorVisible && this.isTyping && !this.isLoadingAnimating;
+          }
         }
       }
       
@@ -129,7 +201,10 @@ export class TerminalInterface {
     if (duration) {
       this.loadingDuration = duration;
     }
-    this.renderText();
+    if (this.cursorMesh) {
+      this.cursorMesh.visible = false; // Hide cursor during loading
+    }
+    this.createTextGeometry();
   }
 
   stopLoadingAnimation() {
@@ -137,7 +212,12 @@ export class TerminalInterface {
     this.isTyping = true; // Enable normal text display
     this.cursorVisible = true; // Ensure cursor starts visible
     this.lastCursorUpdate = Date.now(); // Reset cursor timing
-    this.renderText();
+    this.createTextGeometry();
+    
+    // Show cursor after loading completes
+    if (this.cursorMesh) {
+      this.cursorMesh.visible = true;
+    }
     
     // Start cursor animation after loading completes
     if (!this.isAnimating) {

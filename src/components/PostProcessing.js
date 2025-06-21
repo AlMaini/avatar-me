@@ -24,9 +24,10 @@ export class PostProcessing {
     
     this.pixelPass = new ShaderPass(PixelShader);
     this.pixelPass.uniforms.resolution.value.set(this.sizes.width, this.sizes.height);
-    this.pixelPass.uniforms.pixelSize.value = 1; // Adjust pixel size as needed
+    this.pixelPass.uniforms.pixelSize.value = 3; // Adjust pixel size as needed
     this.pixelPass.enabled = true;
-    this.composer.addPass(this.pixelPass);
+    //this.composer.addPass(this.pixelPass);
+
   }
 
   updateSize(sizes) {

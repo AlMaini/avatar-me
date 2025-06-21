@@ -16,7 +16,7 @@ export class SceneManager {
     
     this.mouse = { x: 0, y: 0 };
     this.cameraPositions = {
-      center: { x: 0, y: 0, z: 20 },
+      center: { x: 0, y: 0, z: 30 },
       left: { x: -5, y: 0, z: 25 },
       right: { x: 5, y: 0, z: 25 }
     };
@@ -39,9 +39,9 @@ export class SceneManager {
     this.renderer.setSize(this.sizes.width, this.sizes.height);
     this.renderer.toneMapping = THREE.ReinhardToneMapping;
 
-    this.light = new THREE.PointLight("#98FFE7", 0, 100, 1.7);
+    this.light = new THREE.PointLight("#98FFE7", 0, 100, 1.7); //#98FFE7
     // this.light = new THREE.AmbientLight(0x404040, 2); // Soft ambient light
-    this.light.position.set(0, 10, 3);
+    this.light.position.set(10, 10, 10);
     this.light.castShadow = true;
     this.scene.add(this.light);
 
