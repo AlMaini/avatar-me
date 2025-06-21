@@ -26,7 +26,7 @@ export class ModelLoader {
   async loadMonitor(scene) {
     return new Promise((resolve, reject) => {
       this.loader.load(
-        './monitor/monitor.gltf',
+        './monitor_2/monitor.gltf',
         (gltf) => {
           const monitor = gltf.scene;
           monitor.scale.set(1.3, 1.3, 1.3);

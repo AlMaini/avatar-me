@@ -85,40 +85,40 @@ export class AvatarInterface {
     // Create a group to hold all avatar elements
     this.avatarMesh = new THREE.Group();
 
-    // Simplified ASCII art using ⣿ blocks - with blinking states
+    // Simplified ASCII art using # blocks - with blinking states
     let leftEye, rightEye;
     
     if (this.isBlinking) {
       // Closed eyes - top and bottom lines converged
       leftEye = [
-        '⣿⣿⣿⣿⣿⣿',
-        '⣿⣿⣿⣿⣿⣿'
+        '######',
+        '######'
       ];
       
       rightEye = [
-        '⣿⣿⣿⣿⣿⣿',
-        '⣿⣿⣿⣿⣿⣿'
+        '######',
+        '######'
       ];
     } else {
       // Open eyes - normal state
       leftEye = [
-        '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿',
-        '⣿         ⣿',
-        '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿'
+        '##########',
+        '#         #',
+        '##########'
       ];
 
       rightEye = [
-        '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿',
-        '⣿         ⣿',
-        '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿'
+        '##########',
+        '#         #',
+        '##########'
       ];
     }
 
     const mouth = [
-      '        ⣿',
-      '⣿             ⣿',
-      '⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿',
-      ' ⣿⣿⣿     ⣿⣿⣿ '
+      '        #',
+      '#             #',
+      '#############',
+      ' ###     ### '
     ];
 
     // Use same material as text for all avatar parts
