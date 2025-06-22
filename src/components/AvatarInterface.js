@@ -29,6 +29,31 @@ export class AvatarInterface {
     this.rightEyeGroup = null;
     this.leftEyeClosed = null;
     this.rightEyeClosed = null;
+    this.mouthGroup = null;
+    
+    // Mouse tracking properties
+    this.mouse = { x: 0, y: 0 };
+    this.eyeBasePositions = {
+      left: { x: -0.1, y: 0.3 },
+      right: { x: 0.1, y: 0.3 }
+    };
+    
+    // Damping properties for smooth movement
+    this.currentEyePosition = { x: 0, y: 0 };
+    this.targetEyePosition = { x: 0, y: 0 };
+    this.dampingFactor = 0.12; // Lower = smoother but slower response
+    
+    // Individual eye damping for natural variation
+    this.leftEyeDamping = 0.12;
+    this.rightEyeDamping = 0.14; // Slightly different for natural movement
+    this.currentLeftEyePosition = { x: 0, y: 0 };
+    this.currentRightEyePosition = { x: 0, y: 0 };
+    
+    // Breathing animation properties
+    this.breathingOffset = 0;
+    this.breathingSpeed = 0.05;
+    this.breathingAmplitude = 0.02;
+    this.mouthBasePosition = { x: 0, y: -0.8 };
     
     // Shared materials
     this.avatarMaterial = null;
@@ -169,7 +194,7 @@ export class AvatarInterface {
     this.rightEyeGroup = createASCIIGroup(rightEyeOpen, 1.4, 0.8);
     this.leftEyeClosed = createASCIIGroup(leftEyeClosed, -1.4, 0.8);
     this.rightEyeClosed = createASCIIGroup(rightEyeClosed, 1.4, 0.8);
-    const mouthGroup = createASCIIGroup(mouth, 0, -0.8);
+    this.mouthGroup = createASCIIGroup(mouth, 0, -0.8);
 
     // Initially show open eyes, hide closed eyes
     this.leftEyeClosed.visible = false;
@@ -180,7 +205,7 @@ export class AvatarInterface {
     this.avatarMesh.add(this.rightEyeGroup);
     this.avatarMesh.add(this.leftEyeClosed);
     this.avatarMesh.add(this.rightEyeClosed);
-    this.avatarMesh.add(mouthGroup);
+    this.avatarMesh.add(this.mouthGroup);
 
     // Position the avatar mesh relative to the interface plane
     this.avatarMesh.position.copy(this.interfacePlane.position);
@@ -254,6 +279,12 @@ export class AvatarInterface {
           this.endBlink();
         }
       }
+      
+      // Update eye tracking
+      this.updateEyeTracking();
+      
+      // Update breathing animation
+      this.updateBreathing();
     }
     
     // Handle loading animation
@@ -326,6 +357,94 @@ export class AvatarInterface {
       this.loadingResolve(); // Fixed: was calling resolve instead of this.loadingResolve()
       this.loadingResolve = null;
     }
+  }
+
+  updateMouse(mouseX, mouseY) {
+    this.mouse.x = mouseX;
+    this.mouse.y = mouseY;
+  }
+
+  updateEyeTracking() {
+    if (!this.leftEyeGroup || !this.rightEyeGroup) return;
+    
+    // Calculate target eye movement based on mouse position
+    const eyeMovementRange = 0.3; // How far eyes can move
+    const mouseInfluence = 0.9; // How much mouse affects eye position
+    
+    this.targetEyePosition.x = this.mouse.x * eyeMovementRange * mouseInfluence;
+    this.targetEyePosition.y = this.mouse.y * eyeMovementRange * mouseInfluence * 0.3; // Less vertical movement
+    
+    // Apply individual damping to each eye for natural variation
+    this.currentLeftEyePosition.x += (this.targetEyePosition.x - this.currentLeftEyePosition.x) * this.leftEyeDamping;
+    this.currentLeftEyePosition.y += (this.targetEyePosition.y - this.currentLeftEyePosition.y) * this.leftEyeDamping;
+    
+    this.currentRightEyePosition.x += (this.targetEyePosition.x - this.currentRightEyePosition.x) * this.rightEyeDamping;
+    this.currentRightEyePosition.y += (this.targetEyePosition.y - this.currentRightEyePosition.y) * this.rightEyeDamping;
+    
+    // Update left eye position with its own damped values
+    this.leftEyeGroup.position.set(
+      this.eyeBasePositions.left.x + this.currentLeftEyePosition.x,
+      this.eyeBasePositions.left.y + this.currentLeftEyePosition.y,
+      0
+    );
+    
+    // Update right eye position with its own damped values
+    this.rightEyeGroup.position.set(
+      this.eyeBasePositions.right.x + this.currentRightEyePosition.x,
+      this.eyeBasePositions.right.y + this.currentRightEyePosition.y,
+      0
+    );
+    
+    // Also update closed eye positions for blinking
+    if (this.leftEyeClosed && this.rightEyeClosed) {
+      this.leftEyeClosed.position.set(
+        this.eyeBasePositions.left.x + this.currentLeftEyePosition.x,
+        this.eyeBasePositions.left.y + this.currentLeftEyePosition.y,
+        0
+      );
+      
+      this.rightEyeClosed.position.set(
+        this.eyeBasePositions.right.x + this.currentRightEyePosition.x,
+        this.eyeBasePositions.right.y + this.currentRightEyePosition.y,
+        0
+      );
+    }
+    
+    // Update mouth position to follow eyes with damping (using average of both eyes)
+    if (this.mouthGroup) {
+      // Calculate breathing movement (sine wave)
+      const breathingY = Math.sin(this.breathingOffset) * this.breathingAmplitude;
+      
+      // Use average of both eye positions for mouth movement
+      const avgEyeX = (this.currentLeftEyePosition.x + this.currentRightEyePosition.x) / 2;
+      const avgEyeY = (this.currentLeftEyePosition.y + this.currentRightEyePosition.y) / 2;
+      
+      // Move mouth with eyes but with less influence and damping
+      const mouthInfluence = 0.9; // Less movement than eyes
+      this.mouthGroup.position.set(
+        this.mouthBasePosition.x + (avgEyeX * mouthInfluence),
+        this.mouthBasePosition.y + (avgEyeY * mouthInfluence) + breathingY,
+        0
+      );
+    }
+  }
+
+  updateBreathing() {
+    if (!this.mouthGroup) return;
+    
+    // Update breathing offset
+    this.breathingOffset += this.breathingSpeed;
+    
+    // Calculate breathing movement (sine wave)
+    const breathingY = Math.sin(this.breathingOffset) * this.breathingAmplitude;
+    
+    // Update mouth position
+    // this.mouthGroup.position.set(
+    //   this.mouthBasePosition.x,
+    //   this.mouthBasePosition.y + breathingY,
+    //   0
+    // );
+    this.mouthGroup.position.y = this.mouthBasePosition.y + breathingY; // Only update Y position
   }
 
   dispose() {

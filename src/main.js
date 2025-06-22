@@ -74,6 +74,11 @@ async function init() {
       postProcessing.updateSize(sizes);
     });
     
+    // Connect mouse movement to avatar eye tracking
+    sceneManager.setMouseMoveCallback((mouseX, mouseY) => {
+      avatarInterface.updateMouse(mouseX, mouseY);
+    });
+    
     terminalInterface.updateInterfaceWithText("");
 
     const light = sceneManager.light;

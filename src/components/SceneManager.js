@@ -95,7 +95,8 @@ export class SceneManager {
     this.mouse.x = (event.clientX / this.sizes.width) * 2 - 1;
     this.mouse.y = -(event.clientY / this.sizes.height) * 2 + 1;
     
-    this.updateCameraTarget();
+    // Notify mouse movement callback (for avatar eye tracking)
+    this.onMouseMove?.(this.mouse.x, this.mouse.y);
   }
 
   handleKeyDown(event) {
@@ -136,12 +137,16 @@ export class SceneManager {
 
   setupEventListeners() {
     window.addEventListener('resize', this.handleResize);
-    //window.addEventListener('mousemove', this.handleMouseMove);
+    window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('keydown', this.handleKeyDown);
   }
 
   setResizeCallback(callback) {
     this.onResize = callback;
+  }
+
+  setMouseMoveCallback(callback) {
+    this.onMouseMove = callback;
   }
 
   getScene() {
