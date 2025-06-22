@@ -88,7 +88,7 @@ async function init() {
       terminalInterface.updateInterfaceWithText("");
       terminalInterface.setupKeyboardListeners();
 
-      outputInterface.streamText(tutorialText);
+      outputInterface.streamText(tutorialText,100);
       });
     });
 

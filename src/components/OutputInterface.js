@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
-import { threeFontManager } from '../utils/FontLoader.js';
+import { threeFontManager, loadCustomFont } from '../utils/FontLoader.js';
 
 export class OutputInterface {
   constructor() {
@@ -28,11 +28,13 @@ export class OutputInterface {
     this.lineHeight = 0.8;
     this.textLines = [];
     
-    // Character geometry pooling
-    this.characterGeometryPool = new Map(); // Cache geometries by character
-    this.characterMeshPool = new Map(); // Pool of meshes by character
-    this.activeMeshes = [];
-    this.maxPoolSizePerChar = 10; // Max meshes per character
+    // Canvas-based text rendering
+    this.canvas = null;
+    this.canvasContext = null;
+    this.textTexture = null;
+    this.textPlane = null;
+    this.canvasWidth = 1024;
+    this.canvasHeight = 512;
     
     // Performance optimizations
     this.lastGeometryUpdate = 0;
@@ -45,16 +47,22 @@ export class OutputInterface {
     // Caching for performance
     this.cachedText = null;
     
-    // Common characters for pre-pooling
-    this.commonChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?;:\'"()-_/\\@#$%^&*+=[]{}|<>~`';
+    // Font settings for canvas
+    this.fontSize = 32;
+    this.fontFamily = 'CustomTerminal, Courier New, monospace'; // Use custom font as fallback
+    this.lineSpacing = 40;
+    this.charWidth = 19.2; // Approximate monospace character width
+    this.customFontLoaded = false;
   }
 
   async createInterface(scene) {
     this.scene = scene;
     
-    await this.loadFont();
+    // Load custom font before initializing
+    await this.loadCustomFont();
+    
     this.initializeMaterials();
-    this.preloadCharacterGeometries();
+    this.initializeCanvas();
     
     this.interfaceGroup = new THREE.Group();
     this.interfaceGroup.position.set(10, 1, 5);
@@ -68,100 +76,97 @@ export class OutputInterface {
     this.interfacePlane = new THREE.Mesh(planeGeometry, this.planeMaterial);
     this.interfaceGroup.add(this.interfacePlane);
     
+    // Create text plane with canvas texture
+    this.createTextPlane();
+    
     scene.add(this.interfaceGroup);
     
-    this.createTextGeometry();
+    this.updateTextTexture();
     
     return this.interfaceGroup;
   }
 
-  initializeMaterials() {
-    this.textMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff88,
-      emissive: 0x00ff88,
-      emissiveIntensity: 1
-    });
-  }
-
-  async loadFont() {
+  async loadCustomFont() {
     try {
-      this.font = await threeFontManager.loadFont('/fonts/Glass TTY VT220_Medium.json');
-      return this.font;
+      // Load the custom web font
+      await loadCustomFont();
+      this.customFontLoaded = true;
+      console.log('Custom font loaded successfully');
     } catch (error) {
-      console.error('Error loading font:', error);
-      throw error;
+      console.warn('Failed to load custom font, using fallback:', error);
+      this.fontFamily = 'Courier New, monospace';
     }
   }
 
-  preloadCharacterGeometries() {
-    if (!this.font) return;
-    
-    // Pre-create geometries for common characters
-    for (const char of this.commonChars) {
-      this.getCharacterGeometry(char);
-    }
+  initializeMaterials() {
+    // Material will be created after canvas initialization
   }
-
-  getCharacterGeometry(char) {
-    if (this.characterGeometryPool.has(char)) {
-      return this.characterGeometryPool.get(char);
-    }
+  
+  initializeCanvas() {
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = this.canvasWidth;
+    this.canvas.height = this.canvasHeight;
+    this.canvasContext = this.canvas.getContext('2d');
     
-    const geometry = new TextGeometry(char, {
-      font: this.font,
-      size: 0.3,
-      height: 0.05,
-      curveSegments: 12, // Reduced from 12 for better performance
-      bevelEnabled: false
+    // Set up canvas text properties with loaded font
+    this.canvasContext.font = `${this.fontSize}px ${this.fontFamily}`;
+    this.canvasContext.textAlign = 'left';
+    this.canvasContext.textBaseline = 'top';
+    this.canvasContext.imageSmoothingEnabled = false;
+    
+    // Create texture from canvas
+    this.textTexture = new THREE.CanvasTexture(this.canvas);
+    this.textTexture.magFilter = THREE.NearestFilter;
+    this.textTexture.minFilter = THREE.NearestFilter;
+  }
+  
+  createTextPlane() {
+    const planeGeometry = new THREE.PlaneGeometry(this.interfaceWidth - 0.2, this.interfaceHeight - 0.2);
+    const planeMaterial = new THREE.MeshBasicMaterial({
+      map: this.textTexture,
+      transparent: false,
+      side: THREE.DoubleSide,
+      alphaTest: 0.1
     });
     
-    this.characterGeometryPool.set(char, geometry);
-    return geometry;
+    this.textPlane = new THREE.Mesh(planeGeometry, planeMaterial);
+    this.textPlane.position.set(0, 0, 1.1);
+    this.interfaceGroup.add(this.textPlane);
   }
 
-  getPooledCharacterMesh(char) {
-    const charPool = this.characterMeshPool.get(char) || [];
+  updateTextTexture() {
+    if (!this.canvasContext || !this.textTexture) return;
     
-    if (charPool.length > 0) {
-      const mesh = charPool.pop();
-      this.activeMeshes.push(mesh);
-      return mesh;
+    // Clear canvas with black background
+    this.canvasContext.fillStyle = 'rgba(0, 0, 0, 1)';
+    this.canvasContext.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+    
+    if (this.displayedText) {
+      // Ensure font is set with the loaded custom font
+      this.canvasContext.font = `${this.fontSize}px ${this.fontFamily}`;
+      this.canvasContext.textAlign = 'left';
+      this.canvasContext.textBaseline = 'top';
+      
+      // Wrap text and render to canvas
+      const lines = this.wrapText(this.displayedText, Math.floor(this.canvasWidth / this.charWidth));
+      const maxLines = Math.floor((this.canvasHeight - 20) / this.lineSpacing);
+      const visibleLines = lines.slice(-maxLines);
+      
+      // Draw text with green glow
+      this.canvasContext.fillStyle = '#00ff88';
+      this.canvasContext.shadowColor = '#00ff88';
+      this.canvasContext.shadowBlur = 8;
+      
+      visibleLines.forEach((line, index) => {
+        const y = index * this.lineSpacing + 20;
+        this.canvasContext.fillText(line, 100, y);
+      });
     }
     
-    // Create new mesh with shared geometry
-    const geometry = this.getCharacterGeometry(char);
-    const mesh = new THREE.Mesh(geometry, this.textMaterial);
-    mesh.userData.char = char;
-    mesh.scale.set(1, 1, 0.002);
-    this.activeMeshes.push(mesh);
-    return mesh;
+    // Update texture
+    this.textTexture.needsUpdate = true;
   }
 
-  returnMeshToPool(mesh) {
-    const activeIndex = this.activeMeshes.indexOf(mesh);
-    if (activeIndex !== -1) {
-      this.activeMeshes.splice(activeIndex, 1);
-    }
-
-    if (mesh.parent) {
-      mesh.parent.remove(mesh);
-    }
-
-    const char = mesh.userData.char;
-    if (char) {
-      const charPool = this.characterMeshPool.get(char) || [];
-      if (charPool.length < this.maxPoolSizePerChar) {
-        charPool.push(mesh);
-        this.characterMeshPool.set(char, charPool);
-      }
-      // Don't dispose geometry - it's shared across all meshes for this character
-    }
-  }
-
-  returnAllMeshesToPool() {
-    const meshesToReturn = [...this.activeMeshes];
-    meshesToReturn.forEach(mesh => this.returnMeshToPool(mesh));
-  }
 
   wrapText(text, maxCharsPerLine) {
     if (text.length <= maxCharsPerLine) {
@@ -204,60 +209,14 @@ export class OutputInterface {
   }
 
   createTextGeometry() {
-    if (!this.font) return;
-    
-    // Throttle geometry updates for performance
+    // Throttle texture updates for performance
     const now = Date.now();
     if (now - this.lastGeometryUpdate < this.geometryUpdateThrottle) {
       return;
     }
     this.lastGeometryUpdate = now;
     
-    this.returnAllMeshesToPool();
-    
-    if (this.textMesh) {
-      this.interfaceGroup.remove(this.textMesh);
-      this.textMesh = null;
-    }
-    
-    if (this.displayedText) {
-      // Only re-wrap text if it has changed significantly
-      if (!this.cachedText || this.displayedText !== this.cachedText) {
-        this.textLines = this.wrapText(this.displayedText, this.maxCharsPerLine);
-        this.cachedText = this.displayedText;
-      }
-      
-      this.textMesh = new THREE.Group();
-      
-      const maxLines = Math.floor(this.interfaceHeight / this.lineHeight) - 1;
-      const visibleLines = this.textLines.slice(-maxLines);
-      
-      visibleLines.forEach((line, index) => {
-        const lineGroup = new THREE.Group();
-        let currentX = -this.interfaceWidth / 2 + 1;
-        const currentY = this.interfaceHeight / 2 - 1 - (index * this.lineHeight);
-        
-        // Create individual character meshes for the line
-        const fixedCharWidth = 0.15; // Fixed width for monospace consistency
-        
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          const charMesh = this.getPooledCharacterMesh(char);
-          
-          // Position character
-          charMesh.position.set(currentX, currentY, 0);
-          lineGroup.add(charMesh);
-          
-          // Advance position for next character
-          currentX += fixedCharWidth;
-        }
-        
-        this.textMesh.add(lineGroup);
-      });
-      
-      this.textMesh.position.set(0, 0, 1.1);
-      this.interfaceGroup.add(this.textMesh);
-    }
+    this.updateTextTexture();
   }
 
   updateText(text) {
@@ -268,7 +227,7 @@ export class OutputInterface {
     
     this.currentText = text;
     this.displayedText = text;
-    this.createTextGeometry();
+    this.updateTextTexture();
   }
 
   streamText(text, speed = null) {
@@ -301,12 +260,12 @@ export class OutputInterface {
           
           this.displayedText += this.currentText.substr(this.displayedText.length, charsToAdd);
           
-          // Only update geometry if we're not already pending an update
+          // Only update texture if we're not already pending an update
           if (!this.pendingUpdate) {
             this.pendingUpdate = true;
-            // Use requestAnimationFrame to batch geometry updates
+            // Use requestAnimationFrame to batch texture updates
             requestAnimationFrame(() => {
-              this.createTextGeometry();
+              this.updateTextTexture();
               this.pendingUpdate = false;
             });
           }
@@ -343,28 +302,20 @@ export class OutputInterface {
       this.streamingTimeout = null;
     }
     
-    this.createTextGeometry();
+    this.updateTextTexture();
   }
 
   dispose() {
-    this.returnAllMeshesToPool();
-    
-    // Dispose character geometries
-    this.characterGeometryPool.forEach(geometry => {
-      geometry.dispose();
-    });
-    this.characterGeometryPool.clear();
-    this.characterMeshPool.clear();
-    this.activeMeshes = [];
-
-    if (this.textMesh) {
-      this.interfaceGroup.remove(this.textMesh);
-      this.textMesh = null;
+    if (this.textTexture) {
+      this.textTexture.dispose();
+      this.textTexture = null;
     }
-
-    if (this.textMaterial) {
-      this.textMaterial.dispose();
-      this.textMaterial = null;
+    
+    if (this.textPlane) {
+      this.interfaceGroup.remove(this.textPlane);
+      this.textPlane.geometry.dispose();
+      this.textPlane.material.dispose();
+      this.textPlane = null;
     }
     
     if (this.planeMaterial) {
@@ -377,6 +328,8 @@ export class OutputInterface {
       this.streamingTimeout = null;
     }
 
+    this.canvas = null;
+    this.canvasContext = null;
     this.isStreaming = false;
     this.streamQueue = [];
   }
