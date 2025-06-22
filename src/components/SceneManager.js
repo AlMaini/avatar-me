@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
 export class SceneManager {
   constructor(canvas) {
@@ -11,7 +12,7 @@ export class SceneManager {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(45, this.sizes.width / this.sizes.height);
     this.renderer = new THREE.WebGLRenderer({canvas, antialias: true});
-    // this.controls = null;
+    this.controls = null;
     this.light = null;
     
     this.mouse = { x: 0, y: 0 };
@@ -35,21 +36,25 @@ export class SceneManager {
   }
 
   initScene() {
-    this.camera.position.z = 30;
+    this.camera.position.set(50, 8, 70);
+    
+
     this.scene.add(this.camera);
 
     this.renderer.setSize(this.sizes.width, this.sizes.height);
     this.renderer.toneMapping = THREE.ReinhardToneMapping;
 
     this.light = new THREE.PointLight("#98FFE7", 0, 100, 1.7); //#98FFE7
-    // this.light = new THREE.AmbientLight(0x404040, 2); // Soft ambient light
-    this.light.position.set(10, 10, 10);
+    //this.light = new THREE.AmbientLight(0x404040, 2); // Soft ambient light
+    this.light.position.set(10, 13, 10);
     this.light.castShadow = true;
     this.scene.add(this.light);
 
     // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     // this.controls.enableDamping = true;
     // this.controls.dampingFactor = 0.25;
+
+    // const transformControls = new TransformControls(this.camera, this.renderer.domElement);
   }
 
   setupEventListeners() {

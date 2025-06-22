@@ -66,4 +66,24 @@ export class Animations {
       })
     });
   }
+
+  static createStartupZoomAnimation(camera) {
+    return new Promise((resolve) => {
+      const t1 = gsap.timeline({ 
+        defaults: { duration: 4 },
+        onComplete: resolve
+      });
+      
+      t1.to(camera.position, {
+        z: 30,
+        y: 8,
+        x: 0,
+        ease: "power2.inOut",
+      })
+      .to(camera.rotation, {
+        x: -0.3,
+        ease: "power2.inOut"
+      }, 0);
+    });
+  }
 }

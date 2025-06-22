@@ -15,7 +15,7 @@ let terminalInterface;
 let avatarInterface;
 let postProcessing;
 let modelLoader;
-
+let desk;
 
 
 async function init() {
@@ -26,10 +26,13 @@ async function init() {
     sceneManager = new SceneManager(canvas);
     
     modelLoader = new ModelLoader();
+
+    desk = await modelLoader.loadDesk(sceneManager.getScene());
+
     terminal = await modelLoader.loadTerminal(sceneManager.getScene());
     monitor_right = await modelLoader.loadMonitor(sceneManager.getScene());
     monitor_left = await modelLoader.loadMonitor(sceneManager.getScene());
-    monitor_left.position.set(-10, -5, 5);
+    monitor_left.position.set(-10.2, -5, 5);
     monitor_left.rotateY(1.3);
     
     terminalInterface = new TerminalInterface();
@@ -56,13 +59,12 @@ async function init() {
       postProcessing.updateSize(sizes);
     });
     
-    const textInput = terminalInterface.createTextInput();
+    terminalInterface.setupKeyboardListeners();
     terminalInterface.updateInterfaceWithText('');
     
-    setTimeout(() => textInput.focus(), 100);
-    
     const light = sceneManager.getLight();
-    const flickerTimeline = Animations.createLightFlicker(light, 150);
+    const flickerTimeline = Animations.createLightFlicker(light, 100);
+    const zoomIn = Animations.createStartupZoomAnimation(sceneManager.getCamera());
     
     // Start loading animation after flicker completes
     flickerTimeline.eventCallback("onComplete", () => {
@@ -73,7 +75,7 @@ async function init() {
     });
 
     const loop = () => {
-      sceneManager.update();
+      //sceneManager.update();
       avatarInterface.update();
       postProcessing.render();
       requestAnimationFrame(loop);

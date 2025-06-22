@@ -30,10 +30,28 @@ export class ModelLoader {
         (gltf) => {
           const monitor = gltf.scene;
           monitor.scale.set(1.3, 1.3, 1.3);
-          monitor.position.set(10, -5, 5);
+          monitor.position.set(10.2, -5, 5);
           monitor.rotateY(-2.2);
           scene.add(monitor);
           resolve(monitor);
+        },
+        undefined,
+        reject
+      );
+    });
+  }
+
+  async loadDesk(scene) {
+    return new Promise((resolve, reject) => {
+      this.loader.load(
+        './desk/scene.gltf',
+        (gltf) => {
+          const desk = gltf.scene;
+          desk.scale.set(12, 11, 12);
+          desk.position.set(6, -18, 17);
+          desk.rotateY(-2.2);
+          scene.add(desk);
+          resolve(desk);
         },
         undefined,
         reject

@@ -334,34 +334,31 @@ export class TerminalInterface {
     }
   }
 
-  createTextInput() {
-    const textInput = document.createElement('input');
-    textInput.type = 'text';
-    textInput.placeholder = 'Type your command...';
-    textInput.maxLength = 100;
-    textInput.style.cssText = `
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      padding: 10px;
-      font-size: 16px;
-      font-family: monospace;
-      background: rgba(0, 0, 0, 0.8);
-      border: 1px solid #00ff88;
-      color: #00ff88;
-      border-radius: 5px;
-      width: 300px;
-      z-index: 100;
-      outline: none;
-    `;
-    
-    textInput.addEventListener('input', (event) => {
-      this.currentText = event.target.value;
-      this.isTyping = true; // Enable typing mode when user starts typing
-      this.updateInterfaceWithText(this.currentText);
+  setupKeyboardListeners() {
+    document.addEventListener('keydown', (event) => {
+      // Ignore if any input elements are focused
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      if (event.key === 'Backspace') {
+        event.preventDefault();
+        this.currentText = this.currentText.slice(0, -1);
+        this.isTyping = true;
+        this.updateInterfaceWithText(this.currentText);
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        // Handle command submission here if needed
+        console.log('Command entered:', this.currentText);
+        this.currentText = '';
+        this.updateInterfaceWithText(this.currentText);
+      } else if (event.key.length === 1) {
+        // Only add printable characters
+        event.preventDefault();
+        this.currentText += event.key;
+        this.isTyping = true;
+        this.updateInterfaceWithText(this.currentText);
+      }
     });
-    
-    document.body.appendChild(textInput);
-    return textInput;
   }
 }
