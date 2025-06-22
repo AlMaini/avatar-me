@@ -70,7 +70,7 @@ export class Animations {
   static createStartupZoomAnimation(camera) {
     return new Promise((resolve) => {
       const t1 = gsap.timeline({ 
-        defaults: { duration: 4 },
+        defaults: { duration: 6 },
         onComplete: resolve
       });
       

@@ -125,7 +125,7 @@ export class AvatarInterface {
     const avatarMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ff88,
       emissive: 0x00ff88,
-      emissiveIntensity: 5
+      emissiveIntensity: 3
     });
 
     // Function to create ASCII art text geometry from array
@@ -227,7 +227,7 @@ export class AvatarInterface {
       const textMaterial = new THREE.MeshStandardMaterial({ 
                 color: 0x00ff88,
                 emissive: 0x00ff88,
-                emissiveIntensity: 5
+                emissiveIntensity: 3
               });
       this.textMesh = new THREE.Mesh(textGeometry, textMaterial);
       

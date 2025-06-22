@@ -173,7 +173,7 @@ export class TerminalInterface {
         const textMaterial = new THREE.MeshStandardMaterial({ 
           color: 0x00ff88,
           emissive: 0x00ff88,
-          emissiveIntensity: 5
+          emissiveIntensity: 3
         });
         
         const lineMesh = new THREE.Mesh(textGeometry, textMaterial);
@@ -231,7 +231,7 @@ export class TerminalInterface {
     const cursorMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ff88,
       emissive: 0x00ff88,
-      emissiveIntensity: 5
+      emissiveIntensity: 3
     });
     this.cursorMesh = new THREE.Mesh(cursorGeometry, cursorMaterial);
     this.cursorMesh.position.set(0, 0, 1.1); // Base position within group

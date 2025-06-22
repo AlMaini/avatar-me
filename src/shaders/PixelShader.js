@@ -4,7 +4,7 @@ export const PixelShader = {
     uniforms: {
         tDiffuse: { value: null },
         resolution: { value: new THREE.Vector2() },
-        pixelSize: { value: 3.0 },
+        pixelSize: { value: 2.5 },
         colorDepth: { value: 32.0 },
         posterizeLevels: { value: 8.0 },
         luminanceThreshold: { value: 0.5 },

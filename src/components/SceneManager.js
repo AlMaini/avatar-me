@@ -38,7 +38,7 @@ export class SceneManager {
   }
 
   initScene() {
-    this.camera.position.set(50, 8, 70);
+    this.camera.position.set(50, 0, 50);
     
 
     this.scene.add(this.camera);
@@ -92,6 +92,43 @@ export class SceneManager {
       this.mouse.y = -(event.clientY / this.sizes.height) * 2 + 1;
       
       this.updateCameraTarget();
+    });
+
+    // Add keyboard event listener for arrow keys
+    window.addEventListener('keydown', (event) => {
+      // Prevent default behavior for arrow keys
+      if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        event.preventDefault();
+      }
+      
+      // If already moving, don't allow another movement
+      if (this.isMoving) return;
+      
+      switch (event.key) {
+        case 'ArrowLeft':
+          if (this.currentCameraIndex > 0) {
+            this.isMoving = true;
+            this.currentCameraIndex--;
+            this.updateCameraToCurrentState();
+            
+            setTimeout(() => {
+              this.isMoving = false;
+            }, 300);
+          }
+          break;
+          
+        case 'ArrowRight':
+          if (this.currentCameraIndex < this.cameraStates.length - 1) {
+            this.isMoving = true;
+            this.currentCameraIndex++;
+            this.updateCameraToCurrentState();
+            
+            setTimeout(() => {
+              this.isMoving = false;
+            }, 300);
+          }
+          break;
+      }
     });
   }
 
