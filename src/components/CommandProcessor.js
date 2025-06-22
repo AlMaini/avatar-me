@@ -1,6 +1,7 @@
 export class CommandProcessor {
   constructor() {
-    this.apiUrl = 'http://localhost:3001/api/claude';
+    // Use environment variable for API URL, fallback to localhost for dev
+    this.apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/claude';
     this.outputInterface = null;
     this.conversationHistory = [];
     this.maxHistoryLength = 20; // Keep last 20 messages to prevent context overflow
