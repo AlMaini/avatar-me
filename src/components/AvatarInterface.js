@@ -96,32 +96,32 @@ export class AvatarInterface {
 
     // Define eye states
     const leftEyeOpen = [
-      '##########',
-      '#         #',
-      '##########'
+      '########',
+      '#       #',
+      '########'
     ];
 
     const rightEyeOpen = [
-      '##########',
-      '#         #',
-      '##########'
+      '########',
+      '#       #',
+      '########'
     ];
 
     const leftEyeClosed = [
-      '######',
-      '######'
+      '####',
+      '####'
     ];
     
     const rightEyeClosed = [
-      '######',
-      '######'
+      '####',
+      '####'
     ];
 
     const mouth = [
-      '        #',
-      '#             #',
-      '#############',
-      ' ###     ### '
+      '      #',
+      '#           #',
+      '###########',
+      ' ###   ### '
     ];
 
     // Function to create ASCII art text geometry from array
@@ -134,7 +134,7 @@ export class AvatarInterface {
         // Create text geometry for each line
         const textGeometry = new TextGeometry(line, {
           font: this.font,
-          size: 0.15,
+          size: 0.3,
           height: 0.02,
           curveSegments: 12,
           bevelEnabled: false,

@@ -24,7 +24,7 @@ export class OutputInterface {
     // Interface dimensions
     this.interfaceWidth = 10;
     this.interfaceHeight = 8;
-    this.maxCharsPerLine = 35;
+    this.maxCharsPerLine = 40;
     this.lineHeight = 0.5;
     this.textLines = [];
     
@@ -74,7 +74,14 @@ export class OutputInterface {
     this.textMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ff88,
       emissive: 0x00ff88,
-      emissiveIntensity: 2
+      emissiveIntensity: 3
+    });
+    
+    // Add hidden material for characters that haven't been revealed yet
+    this.hiddenTextMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x000000,
+      emissive: 0x000000,
+      emissiveIntensity: -1
     });
   }
 
@@ -191,32 +198,57 @@ export class OutputInterface {
       this.textMesh = null;
     }
     
-    if (this.displayedText) {
+    if (this.currentText) {
       // Only re-wrap text if it has changed significantly
-      if (!this.cachedText || this.displayedText !== this.cachedText) {
-        this.textLines = this.wrapText(this.displayedText, this.maxCharsPerLine);
-        this.cachedText = this.displayedText;
+      if (!this.cachedText || this.currentText !== this.cachedText) {
+        this.textLines = this.wrapText(this.currentText, this.maxCharsPerLine);
+        this.cachedText = this.currentText;
       }
       
       this.textMesh = new THREE.Group();
+      this.characterMeshes = []; // Store references to individual character meshes
       
       const maxLines = Math.floor(this.interfaceHeight / this.lineHeight) - 1;
       const visibleLines = this.textLines.slice(-maxLines);
       
-      visibleLines.forEach((line, index) => {
-        const lineMesh = this.getPooledTextMesh(line);
-        
-        lineMesh.geometry.computeBoundingBox();
-        const bbox = lineMesh.geometry.boundingBox;
-        lineMesh.geometry.translate(-bbox.min.x, -bbox.min.y, -bbox.min.z);
-        
+      let globalCharIndex = 0;
+      
+      visibleLines.forEach((line, lineIndex) => {
         const startX = -this.interfaceWidth / 2 + 1;
-        const startY = this.interfaceHeight / 2 - 1 - (index * this.lineHeight);
+        const startY = this.interfaceHeight / 2 - 1 - (lineIndex * this.lineHeight);
         
-        lineMesh.geometry.translate(startX, startY, 0);
-        lineMesh.position.set(0, 0, 0);
-        
-        this.textMesh.add(lineMesh);
+        // Create individual character meshes for granular control
+        for (let charIndex = 0; charIndex < line.length; charIndex++) {
+          const char = line[charIndex];
+          
+          const charGeometry = new TextGeometry(char, {
+            font: this.font,
+            size: 0.30,
+            height: 0.03,
+            curveSegments: 12,
+            bevelEnabled: false
+          });
+          
+          // Determine if this character should be visible based on streaming progress
+          const shouldBeVisible = globalCharIndex < this.displayedText.length;
+          const material = shouldBeVisible ? this.textMaterial : this.hiddenTextMaterial;
+          
+          const charMesh = new THREE.Mesh(charGeometry, material);
+          charMesh.scale.set(1, 1, 0.001);
+          
+          // Standardize positioning - don't use individual bounding boxes
+          // Position character with consistent spacing
+          const charWidth = 0.20; // Consistent character width
+          const charX = startX + (charIndex * charWidth);
+          
+          charMesh.position.set(charX, startY, 0);
+          charMesh.userData.globalIndex = globalCharIndex;
+          
+          this.characterMeshes.push(charMesh);
+          this.textMesh.add(charMesh);
+          
+          globalCharIndex++;
+        }
       });
       
       this.textMesh.position.set(0, 0, 1.1);
@@ -224,33 +256,14 @@ export class OutputInterface {
     }
   }
 
-  updateText(text) {
-    if (this.isStreaming) {
-      this.streamQueue.push(text);
-      return;
-    }
+  updateStreamingDisplay() {
+    if (!this.characterMeshes) return;
     
-    this.currentText = text;
-    this.displayedText = text;
-    this.createTextGeometry();
-  }
-
-  streamText(text, speed = null) {
-    if (speed !== null) {
-      this.streamingSpeed = speed;
-    }
-    
-    if (this.isStreaming) {
-      this.streamQueue.push(text);
-      return;
-    }
-    
-    this.currentText = text;
-    this.displayedText = '';
-    this.isStreaming = true;
-    this.lastStreamUpdate = Date.now();
-    
-    this.startStreaming();
+    // Update character materials based on current displayed text length
+    this.characterMeshes.forEach((charMesh) => {
+      const shouldBeVisible = charMesh.userData.globalIndex < this.displayedText.length;
+      charMesh.material = shouldBeVisible ? this.textMaterial : this.hiddenTextMaterial;
+    });
   }
 
   startStreaming() {
@@ -265,15 +278,8 @@ export class OutputInterface {
           
           this.displayedText += this.currentText.substr(this.displayedText.length, charsToAdd);
           
-          // Only update geometry if we're not already pending an update
-          if (!this.pendingUpdate) {
-            this.pendingUpdate = true;
-            // Use requestAnimationFrame to batch geometry updates
-            requestAnimationFrame(() => {
-              this.createTextGeometry();
-              this.pendingUpdate = false;
-            });
-          }
+          // Update character visibility instead of recreating geometry
+          this.updateStreamingDisplay();
           
           this.lastStreamUpdate = now;
         } else {
@@ -293,6 +299,27 @@ export class OutputInterface {
     };
     
     streamBatch();
+  }
+
+  streamText(text, speed = null) {
+    if (speed !== null) {
+      this.streamingSpeed = speed;
+    }
+    
+    if (this.isStreaming) {
+      this.streamQueue.push(text);
+      return;
+    }
+    
+    this.currentText = text;
+    this.displayedText = '';
+    this.isStreaming = true;
+    this.lastStreamUpdate = Date.now();
+    
+    // Create all geometries upfront
+    this.createTextGeometry();
+    
+    this.startStreaming();
   }
 
   clearText() {
@@ -317,6 +344,7 @@ export class OutputInterface {
     });
     this.textMeshPool = [];
     this.activeMeshes = [];
+    this.characterMeshes = [];
 
     if (this.textMesh) {
       this.interfaceGroup.remove(this.textMesh);
@@ -326,6 +354,11 @@ export class OutputInterface {
     if (this.textMaterial) {
       this.textMaterial.dispose();
       this.textMaterial = null;
+    }
+    
+    if (this.hiddenTextMaterial) {
+      this.hiddenTextMaterial.dispose();
+      this.hiddenTextMaterial = null;
     }
     
     if (this.planeMaterial) {
