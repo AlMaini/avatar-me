@@ -33,6 +33,11 @@ export class SceneManager {
     this.currentCameraTarget = { ...this.cameraPositions.center };
     this.currentRotationTarget = { ...this.cameraRotations.center };
     
+    // Bind event handlers
+    this.handleResize = this.handleResize.bind(this);
+    this.handleMouseMove = this.handleMouseMove.bind(this);
+    this.handleKeyDown = this.handleKeyDown.bind(this);
+    
     this.initScene();
     this.setupEventListeners();
   }
@@ -74,62 +79,65 @@ export class SceneManager {
     // const transformControls = new TransformControls(this.camera, this.renderer.domElement);
   }
 
-  setupEventListeners() {
-    window.addEventListener('resize', () => {
-      this.sizes.width = window.innerWidth || 800;
-      this.sizes.height = window.innerHeight || 600;
+  handleResize() {
+    this.sizes.width = window.innerWidth || 800;
+    this.sizes.height = window.innerHeight || 600;
 
-      this.camera.aspect = this.sizes.width / this.sizes.height;
-      this.camera.updateProjectionMatrix();
+    this.camera.aspect = this.sizes.width / this.sizes.height;
+    this.camera.updateProjectionMatrix();
 
-      this.renderer.setSize(this.sizes.width, this.sizes.height);
-      
-      this.onResize?.(this.sizes);
-    });
+    this.renderer.setSize(this.sizes.width, this.sizes.height);
     
-    window.addEventListener('mousemove', (event) => {
-      this.mouse.x = (event.clientX / this.sizes.width) * 2 - 1;
-      this.mouse.y = -(event.clientY / this.sizes.height) * 2 + 1;
-      
-      this.updateCameraTarget();
-    });
+    this.onResize?.(this.sizes);
+  }
 
-    // Add keyboard event listener for arrow keys
-    window.addEventListener('keydown', (event) => {
-      // Prevent default behavior for arrow keys
-      if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
-        event.preventDefault();
-      }
-      
-      // If already moving, don't allow another movement
-      if (this.isMoving) return;
-      
-      switch (event.key) {
-        case 'ArrowLeft':
-          if (this.currentCameraIndex > 0) {
-            this.isMoving = true;
-            this.currentCameraIndex--;
-            this.updateCameraToCurrentState();
-            
-            setTimeout(() => {
-              this.isMoving = false;
-            }, 300);
-          }
-          break;
+  handleMouseMove(event) {
+    this.mouse.x = (event.clientX / this.sizes.width) * 2 - 1;
+    this.mouse.y = -(event.clientY / this.sizes.height) * 2 + 1;
+    
+    this.updateCameraTarget();
+  }
+
+  handleKeyDown(event) {
+    // Prevent default behavior for arrow keys
+    if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      event.preventDefault();
+    }
+    
+    // If already moving, don't allow another movement
+    if (this.isMoving) return;
+    
+    switch (event.key) {
+      case 'ArrowLeft':
+        if (this.currentCameraIndex > 0) {
+          this.isMoving = true;
+          this.currentCameraIndex--;
+          this.updateCameraToCurrentState();
           
-        case 'ArrowRight':
-          if (this.currentCameraIndex < this.cameraStates.length - 1) {
-            this.isMoving = true;
-            this.currentCameraIndex++;
-            this.updateCameraToCurrentState();
-            
-            setTimeout(() => {
-              this.isMoving = false;
-            }, 300);
-          }
-          break;
-      }
-    });
+          setTimeout(() => {
+            this.isMoving = false;
+          }, 300);
+        }
+        break;
+        
+      case 'ArrowRight':
+        if (this.currentCameraIndex < this.cameraStates.length - 1) {
+          this.isMoving = true;
+          this.currentCameraIndex++;
+          this.updateCameraToCurrentState();
+          
+          setTimeout(() => {
+            this.isMoving = false;
+          }, 300);
+        }
+        break;
+    }
+  }
+
+  setupEventListeners() {
+    window.addEventListener('resize', this.handleResize);
+    window.addEventListener('mousemove', this.handleMouseMove);
+    window.addEventListener('keydown', this.handleKeyDown);
   }
 
   setResizeCallback(callback) {
@@ -194,14 +202,50 @@ export class SceneManager {
   }
 
   update() {
-    const lerpFactor = 0.05;
+    const lerpFactor = 0.10;
+    const threshold = 0.01; // Minimum delta for camera updates
     
-    this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, this.currentCameraTarget.x, lerpFactor);
-    this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.currentCameraTarget.y, lerpFactor);
-    this.camera.position.z = THREE.MathUtils.lerp(this.camera.position.z, this.currentCameraTarget.z, lerpFactor);
+    // Only update if position delta is significant
+    const positionDelta = Math.abs(this.camera.position.x - this.currentCameraTarget.x) + 
+                         Math.abs(this.camera.position.y - this.currentCameraTarget.y) + 
+                         Math.abs(this.camera.position.z - this.currentCameraTarget.z);
     
-    this.camera.rotation.x = THREE.MathUtils.lerp(this.camera.rotation.x, this.currentRotationTarget.x, lerpFactor);
-    this.camera.rotation.y = THREE.MathUtils.lerp(this.camera.rotation.y, this.currentRotationTarget.y, lerpFactor);
-    this.camera.rotation.z = THREE.MathUtils.lerp(this.camera.rotation.z, this.currentRotationTarget.z, lerpFactor);
+    const rotationDelta = Math.abs(this.camera.rotation.x - this.currentRotationTarget.x) + 
+                         Math.abs(this.camera.rotation.y - this.currentRotationTarget.y) + 
+                         Math.abs(this.camera.rotation.z - this.currentRotationTarget.z);
+    
+    if (positionDelta > threshold) {
+      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, this.currentCameraTarget.x, lerpFactor);
+      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.currentCameraTarget.y, lerpFactor);
+      this.camera.position.z = THREE.MathUtils.lerp(this.camera.position.z, this.currentCameraTarget.z, lerpFactor);
+    }
+    
+    if (rotationDelta > threshold) {
+      this.camera.rotation.x = THREE.MathUtils.lerp(this.camera.rotation.x, this.currentRotationTarget.x, lerpFactor);
+      this.camera.rotation.y = THREE.MathUtils.lerp(this.camera.rotation.y, this.currentRotationTarget.y, lerpFactor);
+      this.camera.rotation.z = THREE.MathUtils.lerp(this.camera.rotation.z, this.currentRotationTarget.z, lerpFactor);
+    }
+  }
+
+  dispose() {
+    // Remove event listeners
+    window.removeEventListener('resize', this.handleResize);
+    window.removeEventListener('mousemove', this.handleMouseMove);
+    window.removeEventListener('keydown', this.handleKeyDown);
+    
+    // Dispose of controls if they exist
+    if (this.controls) {
+      this.controls.dispose();
+    }
+    
+    // Dispose of renderer
+    if (this.renderer) {
+      this.renderer.dispose();
+    }
+    
+    // Clear scene
+    if (this.scene) {
+      this.scene.clear();
+    }
   }
 }

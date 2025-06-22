@@ -75,13 +75,24 @@ async function init() {
       });
     });
 
-    const loop = () => {
-      sceneManager.update();
-      avatarInterface.update();
-      postProcessing.render();
+    let lastTime = performance.now();
+    const targetFPS = 60;
+    const targetFrameTime = 1000 / targetFPS;
+    
+    const loop = (currentTime) => {
+      const deltaTime = currentTime - lastTime;
+      
+      // Only update if enough time has passed (frame rate limiting)
+      if (deltaTime >= targetFrameTime) {
+        sceneManager.update(deltaTime);
+        avatarInterface.update(deltaTime);
+        postProcessing.render();
+        lastTime = currentTime - (deltaTime % targetFrameTime);
+      }
+      
       requestAnimationFrame(loop);
     };
-    loop();
+    loop(performance.now());
   } catch (error) {
     console.error('Error loading resources:', error);
   }
