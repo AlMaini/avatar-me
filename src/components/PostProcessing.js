@@ -13,6 +13,10 @@ export class PostProcessing {
     this.composer = null;
     this.pixelPass = null;
     
+    // Cache computed values
+    this.cachedPixelSize = null;
+    this.lastWidth = 0;
+    
     this.setup();
   }
 
@@ -24,6 +28,12 @@ export class PostProcessing {
     
     this.pixelPass = new ShaderPass(PixelShader);
     this.pixelPass.uniforms.resolution.value.set(this.sizes.width, this.sizes.height);
+    
+    // Cache computed pixel size
+    this.cachedPixelSize = Math.max(1, Math.floor(this.sizes.width / 640));
+    this.lastWidth = this.sizes.width;
+    this.pixelPass.uniforms.pixelSize.value = this.cachedPixelSize;
+    
     this.pixelPass.enabled = true;
     this.composer.addPass(this.pixelPass);
 
@@ -33,6 +43,13 @@ export class PostProcessing {
     this.sizes = sizes;
     this.composer.setSize(sizes.width, sizes.height);
     this.pixelPass.uniforms.resolution.value.set(sizes.width, sizes.height);
+    
+    // Only recalculate pixel size if width changed
+    if (sizes.width !== this.lastWidth) {
+      this.cachedPixelSize = Math.max(1, Math.floor(sizes.width / 640));
+      this.pixelPass.uniforms.pixelSize.value = this.cachedPixelSize;
+      this.lastWidth = sizes.width;
+    }
   }
 
   render() {
@@ -41,5 +58,13 @@ export class PostProcessing {
 
   getPixelPass() {
     return this.pixelPass;
+  }
+
+  dispose() {
+    if (this.composer) {
+      this.composer.dispose();
+      this.composer = null;
+    }
+    this.pixelPass = null;
   }
 }

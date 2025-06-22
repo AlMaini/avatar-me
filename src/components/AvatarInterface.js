@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+import { threeFontManager } from '../utils/FontLoader.js';
 
 export class AvatarInterface {
   constructor() {
@@ -16,7 +16,6 @@ export class AvatarInterface {
     this.loadingDuration = 3000; // Total loading time in ms
     this.loadingStartTime = 0;
     this.loadingResolve = null;
-    this.fontLoader = new FontLoader();
     
     // Blinking animation properties
     this.isBlinking = false;
@@ -24,6 +23,16 @@ export class AvatarInterface {
     this.blinkInterval = 3000; // Time between blinks (ms)
     this.lastBlinkTime = Date.now();
     this.blinkStartTime = 0;
+    
+    // Eye references for blinking optimization
+    this.leftEyeGroup = null;
+    this.rightEyeGroup = null;
+    this.leftEyeClosed = null;
+    this.rightEyeClosed = null;
+    
+    // Shared materials
+    this.avatarMaterial = null;
+    this.textMaterial = null;
   }
 
   async createInterface(scene) {
@@ -31,6 +40,9 @@ export class AvatarInterface {
     
     // Load the font first
     await this.loadFont();
+    
+    // Initialize shared materials
+    this.initializeMaterials();
     
     const planeGeometry = new THREE.BoxGeometry(7, 6.5, 1.5);
     const planeMaterial = new THREE.MeshBasicMaterial({ 
@@ -50,69 +62,60 @@ export class AvatarInterface {
     return this.interfacePlane;
   }
 
-  loadFont() {
-    return new Promise((resolve, reject) => {
-      this.fontLoader.load(
-        '/fonts/Glass TTY VT220_Medium.json',
-        (font) => {
-          this.font = font;
-          resolve();
-        },
-        undefined,
-        (error) => {
-          console.error('Error loading font:', error);
-          reject(error);
-        }
-      );
+  initializeMaterials() {
+    this.avatarMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x00ff88,
+      emissive: 0x00ff88,
+      emissiveIntensity: 3
+    });
+    
+    this.textMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x00ff88,
+      emissive: 0x00ff88,
+      emissiveIntensity: 3
     });
   }
 
-  createAvatarMesh() {
-    // Remember the current visibility state
-    const wasVisible = this.avatarMesh ? this.avatarMesh.visible : false;
-    
-    // Remove existing avatar mesh
-    if (this.avatarMesh) {
-      this.scene.remove(this.avatarMesh);
-      this.avatarMesh.traverse((child) => {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) child.material.dispose();
-      });
+  async loadFont() {
+    try {
+      this.font = await threeFontManager.loadFont('/fonts/Glass TTY VT220_Medium.json');
+    } catch (error) {
+      console.error('Error loading font:', error);
+      throw error;
     }
+  }
+
+  createAvatarMesh() {
+    // Only create if it doesn't exist
+    if (this.avatarMesh) return;
 
     if (!this.font) return;
 
     // Create a group to hold all avatar elements
     this.avatarMesh = new THREE.Group();
 
-    // Simplified ASCII art using # blocks - with blinking states
-    let leftEye, rightEye;
-    
-    if (this.isBlinking) {
-      // Closed eyes - top and bottom lines converged
-      leftEye = [
-        '######',
-        '######'
-      ];
-      
-      rightEye = [
-        '######',
-        '######'
-      ];
-    } else {
-      // Open eyes - normal state
-      leftEye = [
-        '##########',
-        '#         #',
-        '##########'
-      ];
+    // Define eye states
+    const leftEyeOpen = [
+      '##########',
+      '#         #',
+      '##########'
+    ];
 
-      rightEye = [
-        '##########',
-        '#         #',
-        '##########'
-      ];
-    }
+    const rightEyeOpen = [
+      '##########',
+      '#         #',
+      '##########'
+    ];
+
+    const leftEyeClosed = [
+      '######',
+      '######'
+    ];
+    
+    const rightEyeClosed = [
+      '######',
+      '######'
+    ];
 
     const mouth = [
       '        #',
@@ -120,13 +123,6 @@ export class AvatarInterface {
       '#############',
       ' ###     ### '
     ];
-
-    // Use same material as text for all avatar parts
-    const avatarMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff88,
-      emissive: 0x00ff88,
-      emissiveIntensity: 3
-    });
 
     // Function to create ASCII art text geometry from array
     const createASCIIGroup = (asciiArray, offsetX, offsetY) => {
@@ -153,7 +149,7 @@ export class AvatarInterface {
         // Center the text horizontally
         textGeometry.translate(-textWidth / 2, 0, 0);
 
-        const textMesh = new THREE.Mesh(textGeometry, avatarMaterial);
+        const textMesh = new THREE.Mesh(textGeometry, this.avatarMaterial);
         
         // Position each line
         textMesh.position.set(
@@ -168,14 +164,22 @@ export class AvatarInterface {
       return group;
     };
 
-    // Create eyes and mouth as text
-    const leftEyeGroup = createASCIIGroup(leftEye, -1.4, 0.8);
-    const rightEyeGroup = createASCIIGroup(rightEye, 1.4, 0.8);
+    // Create both open and closed eye states
+    this.leftEyeGroup = createASCIIGroup(leftEyeOpen, -1.4, 0.8);
+    this.rightEyeGroup = createASCIIGroup(rightEyeOpen, 1.4, 0.8);
+    this.leftEyeClosed = createASCIIGroup(leftEyeClosed, -1.4, 0.8);
+    this.rightEyeClosed = createASCIIGroup(rightEyeClosed, 1.4, 0.8);
     const mouthGroup = createASCIIGroup(mouth, 0, -0.8);
 
+    // Initially show open eyes, hide closed eyes
+    this.leftEyeClosed.visible = false;
+    this.rightEyeClosed.visible = false;
+
     // Add all groups to the main avatar mesh
-    this.avatarMesh.add(leftEyeGroup);
-    this.avatarMesh.add(rightEyeGroup);
+    this.avatarMesh.add(this.leftEyeGroup);
+    this.avatarMesh.add(this.rightEyeGroup);
+    this.avatarMesh.add(this.leftEyeClosed);
+    this.avatarMesh.add(this.rightEyeClosed);
     this.avatarMesh.add(mouthGroup);
 
     // Position the avatar mesh relative to the interface plane
@@ -183,8 +187,7 @@ export class AvatarInterface {
     this.avatarMesh.position.z += 0.9; // In front of the plane
     this.avatarMesh.position.y += 0.5; // Slightly higher
 
-    // Restore the visibility state instead of always hiding
-    this.avatarMesh.visible = wasVisible;
+    this.avatarMesh.visible = false; // Hidden initially
 
     this.scene.add(this.avatarMesh);
   }
@@ -224,12 +227,7 @@ export class AvatarInterface {
 
       textGeometry.translate(-textWidth / 2, -textHeight / 2, 0);
 
-      const textMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x00ff88,
-                emissive: 0x00ff88,
-                emissiveIntensity: 3
-              });
-      this.textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      this.textMesh = new THREE.Mesh(textGeometry, this.textMaterial);
       
       // Position relative to the interface plane, below the avatar
       this.textMesh.position.copy(this.interfacePlane.position);
@@ -278,13 +276,27 @@ export class AvatarInterface {
   startBlink() {
     this.isBlinking = true;
     this.blinkStartTime = Date.now();
-    this.createAvatarMesh(); // Recreate with closed eyes
+    
+    // Toggle eye visibility
+    if (this.leftEyeGroup && this.rightEyeGroup && this.leftEyeClosed && this.rightEyeClosed) {
+      this.leftEyeGroup.visible = false;
+      this.rightEyeGroup.visible = false;
+      this.leftEyeClosed.visible = true;
+      this.rightEyeClosed.visible = true;
+    }
   }
 
   endBlink() {
     this.isBlinking = false;
     this.lastBlinkTime = Date.now();
-    this.createAvatarMesh(); // Recreate with open eyes
+    
+    // Toggle eye visibility back
+    if (this.leftEyeGroup && this.rightEyeGroup && this.leftEyeClosed && this.rightEyeClosed) {
+      this.leftEyeGroup.visible = true;
+      this.rightEyeGroup.visible = true;
+      this.leftEyeClosed.visible = false;
+      this.rightEyeClosed.visible = false;
+    }
   }
 
   startLoadingAnimation(duration = null) {
@@ -314,5 +326,39 @@ export class AvatarInterface {
       this.loadingResolve(); // Fixed: was calling resolve instead of this.loadingResolve()
       this.loadingResolve = null;
     }
+  }
+
+  dispose() {
+    // Dispose of avatar mesh and all its children
+    if (this.avatarMesh) {
+      this.avatarMesh.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+      });
+      this.scene.remove(this.avatarMesh);
+      this.avatarMesh = null;
+    }
+
+    // Dispose of text mesh
+    if (this.textMesh) {
+      this.textMesh.geometry.dispose();
+      this.scene.remove(this.textMesh);
+      this.textMesh = null;
+    }
+
+    // Dispose of shared materials
+    if (this.avatarMaterial) {
+      this.avatarMaterial.dispose();
+      this.avatarMaterial = null;
+    }
+    if (this.textMaterial) {
+      this.textMaterial.dispose();
+      this.textMaterial = null;
+    }
+
+    // Reset references
+    this.leftEyeGroup = null;
+    this.rightEyeGroup = null;
+    this.leftEyeClosed = null;
+    this.rightEyeClosed = null;
   }
 }

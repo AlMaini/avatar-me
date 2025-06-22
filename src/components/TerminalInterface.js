@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+import { threeFontManager } from '../utils/FontLoader.js';
 
 export class TerminalInterface {
   constructor() {
@@ -22,7 +22,6 @@ export class TerminalInterface {
     this.loadingInterval = 300; // 300ms between dots
     this.loadingDuration = 3000; // Total loading time in ms
     this.loadingStartTime = 0;
-    this.fontLoader = new FontLoader();
     // Interface dimensions for text wrapping
     this.interfaceWidth = 10;
     this.interfaceHeight = 8;
@@ -31,6 +30,15 @@ export class TerminalInterface {
     this.currentLine = 0;
     this.textLines = [];
     this.updateTimeout = null;
+    
+    // Object pooling for text geometries
+    this.textMeshPool = [];
+    this.activeMeshes = [];
+    this.maxPoolSize = 20; // Max number of pooled meshes
+    
+    // Shared materials
+    this.textMaterial = null;
+    this.cursorMaterial = null;
   }
 
   async createInterface(scene) {
@@ -38,6 +46,9 @@ export class TerminalInterface {
     
     // Load the font first
     await this.loadFont();
+    
+    // Initialize shared materials
+    this.initializeMaterials();
     
     // Create a group to hold all interface elements
     this.interfaceGroup = new THREE.Group();
@@ -61,21 +72,82 @@ export class TerminalInterface {
     return this.interfaceGroup;
   }
 
-  loadFont() {
-    return new Promise((resolve, reject) => {
-      this.fontLoader.load(
-        '/fonts/Glass TTY VT220_Medium.json',
-        (font) => {
-          this.font = font;
-          resolve(font);
-        },
-        undefined,
-        (error) => {
-          console.error('Error loading font:', error);
-          reject(error);
-        }
-      );
+  initializeMaterials() {
+    this.textMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x00ff88,
+      emissive: 0x00ff88,
+      emissiveIntensity: 3
     });
+    
+    this.cursorMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x00ff88,
+      emissive: 0x00ff88,
+      emissiveIntensity: 3
+    });
+  }
+
+  getPooledTextMesh(text) {
+    // Try to find a mesh with the same text in the pool
+    const pooledMesh = this.textMeshPool.find(mesh => mesh.userData.text === text);
+    if (pooledMesh) {
+      // Remove from pool and add to active
+      const index = this.textMeshPool.indexOf(pooledMesh);
+      this.textMeshPool.splice(index, 1);
+      this.activeMeshes.push(pooledMesh);
+      return pooledMesh;
+    }
+
+    // If no match found, create new mesh
+    const textGeometry = new TextGeometry(text || ' ', {
+      font: this.font,
+      size: 0.3,
+      height: 0.05,
+      curveSegments: 12,
+      bevelEnabled: false
+    });
+    
+    const lineMesh = new THREE.Mesh(textGeometry, this.textMaterial);
+    lineMesh.userData.text = text;
+    lineMesh.scale.set(1, 1, 0.001);
+    this.activeMeshes.push(lineMesh);
+    return lineMesh;
+  }
+
+  returnMeshToPool(mesh) {
+    // Remove from active meshes
+    const activeIndex = this.activeMeshes.indexOf(mesh);
+    if (activeIndex !== -1) {
+      this.activeMeshes.splice(activeIndex, 1);
+    }
+
+    // Remove from scene
+    if (mesh.parent) {
+      mesh.parent.remove(mesh);
+    }
+
+    // Add to pool if there's space
+    if (this.textMeshPool.length < this.maxPoolSize) {
+      this.textMeshPool.push(mesh);
+    } else {
+      // Pool is full, dispose of the mesh
+      mesh.geometry.dispose();
+    }
+  }
+
+  returnAllMeshesToPool() {
+    // Return all active meshes to pool
+    const meshesToReturn = [...this.activeMeshes];
+    meshesToReturn.forEach(mesh => this.returnMeshToPool(mesh));
+  }
+
+  async loadFont() {
+    try {
+      this.font = await threeFontManager.loadFont('/fonts/Glass TTY VT220_Medium.json');
+      return this.font;
+    } catch (error) {
+      console.error('Error loading font:', error);
+      throw error;
+    }
   }
 
   wrapText(text, maxCharsPerLine) {
@@ -122,14 +194,12 @@ export class TerminalInterface {
   createTextGeometry() {
     if (!this.font) return;
     
+    // Return existing meshes to pool
+    this.returnAllMeshesToPool();
+    
     // Remove existing text mesh if it exists
     if (this.textMesh) {
       this.interfaceGroup.remove(this.textMesh);
-      // Properly dispose of all child geometries and materials
-      this.textMesh.traverse((child) => {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) child.material.dispose();
-      });
       this.textMesh = null;
     }
     
@@ -154,31 +224,20 @@ export class TerminalInterface {
       const visibleLines = this.textLines.slice(-maxLines);
       
       visibleLines.forEach((line, index) => {
-        const textGeometry = new TextGeometry(line || ' ', {
-          font: this.font,
-          size: 0.3,
-          height: 0.05,
-          curveSegments: 12,
-          bevelEnabled: false
-        });
+        const lineMesh = this.getPooledTextMesh(line);
         
-        textGeometry.computeBoundingBox();
+        // Reset geometry position
+        lineMesh.geometry.computeBoundingBox();
+        const bbox = lineMesh.geometry.boundingBox;
+        lineMesh.geometry.translate(-bbox.min.x, -bbox.min.y, -bbox.min.z);
         
         // Position text within interface bounds
         const startX = -this.interfaceWidth / 2 + 1;
         const startY = this.interfaceHeight / 2 - 1 - (index * this.lineHeight);
         
-        textGeometry.translate(startX, startY, 0);
+        lineMesh.geometry.translate(startX, startY, 0);
+        lineMesh.position.set(0, 0, 0);
         
-        const textMaterial = new THREE.MeshStandardMaterial({ 
-          color: 0x00ff88,
-          emissive: 0x00ff88,
-          emissiveIntensity: 3
-        });
-        
-        const lineMesh = new THREE.Mesh(textGeometry, textMaterial);
-        lineMesh.position.z = 0;
-        lineMesh.scale.set(1, 1, 0.001);
         this.textMesh.add(lineMesh);
       });
       
@@ -223,17 +282,11 @@ export class TerminalInterface {
     if (this.cursorMesh) {
       this.interfaceGroup.remove(this.cursorMesh);
       this.cursorMesh.geometry.dispose();
-      this.cursorMesh.material.dispose();
     }
     
     const cursorGeometry = new THREE.BoxGeometry(0.02, 0.3, 0.05);
     cursorGeometry.scale(1, 1, 0.000002); // Match text scale
-    const cursorMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff88,
-      emissive: 0x00ff88,
-      emissiveIntensity: 3
-    });
-    this.cursorMesh = new THREE.Mesh(cursorGeometry, cursorMaterial);
+    this.cursorMesh = new THREE.Mesh(cursorGeometry, this.cursorMaterial);
     this.cursorMesh.position.set(0, 0, 1.1); // Base position within group
     this.interfaceGroup.add(this.cursorMesh);
   }
@@ -360,5 +413,46 @@ export class TerminalInterface {
         this.updateInterfaceWithText(this.currentText);
       }
     });
+  }
+
+  dispose() {
+    // Return all meshes to pool and dispose of pool
+    this.returnAllMeshesToPool();
+    this.textMeshPool.forEach(mesh => {
+      mesh.geometry.dispose();
+    });
+    this.textMeshPool = [];
+    this.activeMeshes = [];
+
+    // Dispose of cursor
+    if (this.cursorMesh) {
+      this.cursorMesh.geometry.dispose();
+      this.interfaceGroup.remove(this.cursorMesh);
+      this.cursorMesh = null;
+    }
+
+    // Dispose of text mesh group
+    if (this.textMesh) {
+      this.interfaceGroup.remove(this.textMesh);
+      this.textMesh = null;
+    }
+
+    // Dispose of materials
+    if (this.textMaterial) {
+      this.textMaterial.dispose();
+      this.textMaterial = null;
+    }
+    if (this.cursorMaterial) {
+      this.cursorMaterial.dispose();
+      this.cursorMaterial = null;
+    }
+
+    // Clear timeouts
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+      this.updateTimeout = null;
+    }
+
+    this.isAnimating = false;
   }
 }
