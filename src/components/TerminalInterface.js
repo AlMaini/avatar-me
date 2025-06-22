@@ -297,7 +297,7 @@ export class TerminalInterface {
   updateCursorPosition(lastLineText) {
     if (this.cursorMesh && this.isTyping && !this.isLoadingAnimating) {
       // Calculate cursor position based on last line text length
-      const charWidth = 0.21; // Approximate character width
+      const charWidth = 0.20; // Approximate character width
       const textLength = lastLineText.length;
       
       // Position cursor at the end of the last line
