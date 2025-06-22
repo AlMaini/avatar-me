@@ -21,7 +21,7 @@ export class AvatarInterface {
     // Blinking animation properties
     this.isBlinking = false;
     this.blinkDuration = 150; // How long eyes stay closed (ms)
-    this.blinkInterval = 5000; // Time between blinks (ms)
+    this.blinkInterval = 3000; // Time between blinks (ms)
     this.lastBlinkTime = Date.now();
     this.blinkStartTime = 0;
   }
@@ -122,10 +122,10 @@ export class AvatarInterface {
     ];
 
     // Use same material as text for all avatar parts
-    const avatarMaterial = new THREE.MeshBasicMaterial({ 
+    const avatarMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ff88,
       emissive: 0x00ff88,
-      emissiveIntensity: 0.5
+      emissiveIntensity: 5
     });
 
     // Function to create ASCII art text geometry from array
@@ -224,10 +224,10 @@ export class AvatarInterface {
 
       textGeometry.translate(-textWidth / 2, -textHeight / 2, 0);
 
-      const textMaterial = new THREE.MeshBasicMaterial({ 
+      const textMaterial = new THREE.MeshStandardMaterial({ 
                 color: 0x00ff88,
                 emissive: 0x00ff88,
-                emissiveIntensity: 0.5
+                emissiveIntensity: 5
               });
       this.textMesh = new THREE.Mesh(textGeometry, textMaterial);
       

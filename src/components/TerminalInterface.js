@@ -170,10 +170,10 @@ export class TerminalInterface {
         
         textGeometry.translate(startX, startY, 0);
         
-        const textMaterial = new THREE.MeshBasicMaterial({ 
+        const textMaterial = new THREE.MeshStandardMaterial({ 
           color: 0x00ff88,
           emissive: 0x00ff88,
-          emissiveIntensity: 0.5
+          emissiveIntensity: 5
         });
         
         const lineMesh = new THREE.Mesh(textGeometry, textMaterial);
@@ -228,10 +228,10 @@ export class TerminalInterface {
     
     const cursorGeometry = new THREE.BoxGeometry(0.02, 0.3, 0.05);
     cursorGeometry.scale(1, 1, 0.000002); // Match text scale
-    const cursorMaterial = new THREE.MeshBasicMaterial({ 
+    const cursorMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ff88,
       emissive: 0x00ff88,
-      emissiveIntensity: 0.5
+      emissiveIntensity: 5
     });
     this.cursorMesh = new THREE.Mesh(cursorGeometry, cursorMaterial);
     this.cursorMesh.position.set(0, 0, 1.1); // Base position within group

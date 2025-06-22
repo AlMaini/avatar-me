@@ -14,15 +14,17 @@ export class SceneManager {
     this.renderer = new THREE.WebGLRenderer({canvas, antialias: true});
     this.controls = null;
     this.light = null;
+    this.light2 = null;
+    this.lights = null;
     
     this.mouse = { x: 0, y: 0 };
     this.cameraPositions = {
-      center: { x: 0, y: 0, z: 30 },
-      left: { x: 5, y: 0, z: 25 },
-      right: { x: -5, y: 0, z: 25 }
+      center: { x: 0, y: 8, z: 30 },
+      left: { x: 5, y: 0, z: 20 },
+      right: { x: -5, y: 0, z: 20 }
     };
     this.cameraRotations = {
-      center: { x: 0, y: 0, z: 0 },
+      center: { x: -0.3, y: 0, z: 0 },
       left: { x: 0, y: 0.65, z: 0 },
       right: { x: 0, y: -0.65, z: 0 }
     };
@@ -44,11 +46,26 @@ export class SceneManager {
     this.renderer.setSize(this.sizes.width, this.sizes.height);
     this.renderer.toneMapping = THREE.ReinhardToneMapping;
 
-    this.light = new THREE.PointLight("#98FFE7", 0, 100, 1.7); //#98FFE7
+    this.light = new THREE.PointLight("#98FFE7", 0, 100, 1.3); //#98FFE7
     //this.light = new THREE.AmbientLight(0x404040, 2); // Soft ambient light
-    this.light.position.set(10, 13, 10);
+    //this.light.position.set(20, 7, 5.5);
+    this.light.position.set(-30, 8, 13);
     this.light.castShadow = true;
     this.scene.add(this.light);
+
+    // Add second point light
+    this.light2 = new THREE.PointLight("#98FFE7", 300, 100, 1.3);
+    this.light2.position.set(20, 7, 13);
+    this.light2.castShadow = true;
+    this.scene.add(this.light2);
+
+
+    // // Add light helpers
+    // this.lightHelper = new THREE.PointLightHelper(this.light, 0.5);
+    // this.scene.add(this.lightHelper);
+
+    // this.lightHelper2 = new THREE.PointLightHelper(this.light2, 0.5);
+    // this.scene.add(this.lightHelper2);
 
     // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     // this.controls.enableDamping = true;

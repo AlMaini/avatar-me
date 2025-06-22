@@ -62,8 +62,9 @@ async function init() {
     terminalInterface.setupKeyboardListeners();
     terminalInterface.updateInterfaceWithText('');
     
-    const light = sceneManager.getLight();
-    const flickerTimeline = Animations.createLightFlicker(light, 100);
+    const light = sceneManager.light;
+    const light2 = sceneManager.light2;
+    const flickerTimeline = Animations.createLightFlicker(light, light2, 300);
     const zoomIn = Animations.createStartupZoomAnimation(sceneManager.getCamera());
     
     // Start loading animation after flicker completes
@@ -75,7 +76,7 @@ async function init() {
     });
 
     const loop = () => {
-      //sceneManager.update();
+      sceneManager.update();
       avatarInterface.update();
       postProcessing.render();
       requestAnimationFrame(loop);
