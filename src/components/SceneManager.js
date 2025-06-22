@@ -22,6 +22,7 @@ export class SceneManager {
       center: { x: 0, y: 8, z: 30 },
       left: { x: 5, y: 0, z: 20 },
       right: { x: -5, y: 0, z: 20 }
+      //right: { x: 0, y: 0, z: 18 }
     };
     this.cameraRotations = {
       center: { x: -0.3, y: 0, z: 0 },

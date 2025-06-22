@@ -24,14 +24,15 @@ export class OutputInterface {
     // Interface dimensions
     this.interfaceWidth = 10;
     this.interfaceHeight = 8;
-    this.maxCharsPerLine = 35;
-    this.lineHeight = 0.5;
+    this.maxCharsPerLine = 45;
+    this.lineHeight = 0.8;
     this.textLines = [];
     
-    // Object pooling for text geometries
-    this.textMeshPool = [];
+    // Character geometry pooling
+    this.characterGeometryPool = new Map(); // Cache geometries by character
+    this.characterMeshPool = new Map(); // Pool of meshes by character
     this.activeMeshes = [];
-    this.maxPoolSize = 50; // Increased pool size for better performance
+    this.maxPoolSizePerChar = 10; // Max meshes per character
     
     // Performance optimizations
     this.lastGeometryUpdate = 0;
@@ -43,6 +44,9 @@ export class OutputInterface {
     
     // Caching for performance
     this.cachedText = null;
+    
+    // Common characters for pre-pooling
+    this.commonChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?;:\'"()-_/\\@#$%^&*+=[]{}|<>~`';
   }
 
   async createInterface(scene) {
@@ -50,6 +54,7 @@ export class OutputInterface {
     
     await this.loadFont();
     this.initializeMaterials();
+    this.preloadCharacterGeometries();
     
     this.interfaceGroup = new THREE.Group();
     this.interfaceGroup.position.set(10, 1, 5);
@@ -74,7 +79,7 @@ export class OutputInterface {
     this.textMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ff88,
       emissive: 0x00ff88,
-      emissiveIntensity: 2
+      emissiveIntensity: 1
     });
   }
 
@@ -88,28 +93,48 @@ export class OutputInterface {
     }
   }
 
-  getPooledTextMesh(text) {
-    const pooledMesh = this.textMeshPool.find(mesh => mesh.userData.text === text);
-    if (pooledMesh) {
-      const index = this.textMeshPool.indexOf(pooledMesh);
-      this.textMeshPool.splice(index, 1);
-      this.activeMeshes.push(pooledMesh);
-      return pooledMesh;
+  preloadCharacterGeometries() {
+    if (!this.font) return;
+    
+    // Pre-create geometries for common characters
+    for (const char of this.commonChars) {
+      this.getCharacterGeometry(char);
     }
+  }
 
-    const textGeometry = new TextGeometry(text || ' ', {
+  getCharacterGeometry(char) {
+    if (this.characterGeometryPool.has(char)) {
+      return this.characterGeometryPool.get(char);
+    }
+    
+    const geometry = new TextGeometry(char, {
       font: this.font,
-      size: 0.25,
-      height: 0.03,
-      curveSegments: 12,
+      size: 0.3,
+      height: 0.05,
+      curveSegments: 12, // Reduced from 12 for better performance
       bevelEnabled: false
     });
     
-    const lineMesh = new THREE.Mesh(textGeometry, this.textMaterial);
-    lineMesh.userData.text = text;
-    lineMesh.scale.set(1, 1, 0.001);
-    this.activeMeshes.push(lineMesh);
-    return lineMesh;
+    this.characterGeometryPool.set(char, geometry);
+    return geometry;
+  }
+
+  getPooledCharacterMesh(char) {
+    const charPool = this.characterMeshPool.get(char) || [];
+    
+    if (charPool.length > 0) {
+      const mesh = charPool.pop();
+      this.activeMeshes.push(mesh);
+      return mesh;
+    }
+    
+    // Create new mesh with shared geometry
+    const geometry = this.getCharacterGeometry(char);
+    const mesh = new THREE.Mesh(geometry, this.textMaterial);
+    mesh.userData.char = char;
+    mesh.scale.set(1, 1, 0.002);
+    this.activeMeshes.push(mesh);
+    return mesh;
   }
 
   returnMeshToPool(mesh) {
@@ -122,10 +147,14 @@ export class OutputInterface {
       mesh.parent.remove(mesh);
     }
 
-    if (this.textMeshPool.length < this.maxPoolSize) {
-      this.textMeshPool.push(mesh);
-    } else {
-      mesh.geometry.dispose();
+    const char = mesh.userData.char;
+    if (char) {
+      const charPool = this.characterMeshPool.get(char) || [];
+      if (charPool.length < this.maxPoolSizePerChar) {
+        charPool.push(mesh);
+        this.characterMeshPool.set(char, charPool);
+      }
+      // Don't dispose geometry - it's shared across all meshes for this character
     }
   }
 
@@ -204,19 +233,26 @@ export class OutputInterface {
       const visibleLines = this.textLines.slice(-maxLines);
       
       visibleLines.forEach((line, index) => {
-        const lineMesh = this.getPooledTextMesh(line);
+        const lineGroup = new THREE.Group();
+        let currentX = -this.interfaceWidth / 2 + 1;
+        const currentY = this.interfaceHeight / 2 - 1 - (index * this.lineHeight);
         
-        lineMesh.geometry.computeBoundingBox();
-        const bbox = lineMesh.geometry.boundingBox;
-        lineMesh.geometry.translate(-bbox.min.x, -bbox.min.y, -bbox.min.z);
+        // Create individual character meshes for the line
+        const fixedCharWidth = 0.15; // Fixed width for monospace consistency
         
-        const startX = -this.interfaceWidth / 2 + 1;
-        const startY = this.interfaceHeight / 2 - 1 - (index * this.lineHeight);
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          const charMesh = this.getPooledCharacterMesh(char);
+          
+          // Position character
+          charMesh.position.set(currentX, currentY, 0);
+          lineGroup.add(charMesh);
+          
+          // Advance position for next character
+          currentX += fixedCharWidth;
+        }
         
-        lineMesh.geometry.translate(startX, startY, 0);
-        lineMesh.position.set(0, 0, 0);
-        
-        this.textMesh.add(lineMesh);
+        this.textMesh.add(lineGroup);
       });
       
       this.textMesh.position.set(0, 0, 1.1);
@@ -312,10 +348,13 @@ export class OutputInterface {
 
   dispose() {
     this.returnAllMeshesToPool();
-    this.textMeshPool.forEach(mesh => {
-      mesh.geometry.dispose();
+    
+    // Dispose character geometries
+    this.characterGeometryPool.forEach(geometry => {
+      geometry.dispose();
     });
-    this.textMeshPool = [];
+    this.characterGeometryPool.clear();
+    this.characterMeshPool.clear();
     this.activeMeshes = [];
 
     if (this.textMesh) {
