@@ -7,6 +7,7 @@ import { PostProcessing } from './components/PostProcessing.js';
 import { Animations } from './components/Animations.js';
 import { loadCustomFont } from './utils/FontLoader.js';
 import { OutputInterface } from './components/OutputInterface.js';
+import { CommandProcessor } from './components/CommandProcessor.js';
 
 
 let terminal;
@@ -19,6 +20,7 @@ let outputInterface;
 let postProcessing;
 let modelLoader;
 let desk;
+let commandProcessor;
 
 const tutorialText = `Welcome to the Maini Terminal!
 This terminal allows you to interact with an AI clone of myself.
@@ -54,10 +56,13 @@ async function init() {
     outputInterface = new OutputInterface();
     await outputInterface.createInterface(sceneManager.getScene());
     
-    // Connect terminal to output interface
-    // Here, we will connect to LLM output interface
+    // Initialize command processor
+    commandProcessor = new CommandProcessor();
+    commandProcessor.setOutputInterface(outputInterface);
+    
+    // Connect terminal to command processor
     terminalInterface.onCommandSubmitted = (command) => {
-      outputInterface.streamText(`Command executed: ${command}`);
+      commandProcessor.processCommand(command);
     };
 
     
