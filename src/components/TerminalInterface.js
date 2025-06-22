@@ -39,6 +39,9 @@ export class TerminalInterface {
     // Shared materials
     this.textMaterial = null;
     this.cursorMaterial = null;
+    
+    // Event callbacks
+    this.onCommandSubmitted = null;
   }
 
   async createInterface(scene) {
@@ -213,8 +216,8 @@ export class TerminalInterface {
     }
     
     // Debug logging
-    console.log('Display text:', displayText);
-    console.log('Text lines:', this.textLines);
+    //console.log('Display text:', displayText);
+    //console.log('Text lines:', this.textLines);
     
     // Create text mesh group for multi-line text
     if (this.textLines.length > 0) {
@@ -401,8 +404,10 @@ export class TerminalInterface {
         this.updateInterfaceWithText(this.currentText);
       } else if (event.key === 'Enter') {
         event.preventDefault();
-        // Handle command submission here if needed
-        console.log('Command entered:', this.currentText);
+        const command = this.currentText.trim();
+        if (command && this.onCommandSubmitted) {
+          this.onCommandSubmitted(command);
+        }
         this.currentText = '';
         this.updateInterfaceWithText(this.currentText);
       } else if (event.key.length === 1) {

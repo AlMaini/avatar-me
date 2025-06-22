@@ -6,6 +6,8 @@ import { createAvatarMesh, createInterfaceMesh } from './components/ModelCreator
 import { PostProcessing } from './components/PostProcessing.js';
 import { Animations } from './components/Animations.js';
 import { loadCustomFont } from './utils/FontLoader.js';
+import { OutputInterface } from './components/OutputInterface.js';
+
 
 let terminal;
 let monitor_right;
@@ -13,9 +15,17 @@ let monitor_left
 let sceneManager;
 let terminalInterface;
 let avatarInterface;
+let outputInterface;
 let postProcessing;
 let modelLoader;
 let desk;
+
+const tutorialText = `Welcome to the Maini Terminal!
+This terminal allows you to interact with an AI clone of myself.
+You can type to me  and receive responses.
+For example, try typing "hello" or "help" or "resume" to see what happens.
+You can move the camera around using the arrow keys left and right.
+`;
 
 
 async function init() {
@@ -38,13 +48,18 @@ async function init() {
     terminalInterface = new TerminalInterface();
     const interfacePlane = await terminalInterface.createInterface(sceneManager.getScene());
     
-    
-    const monitor_rightInterface = createInterfaceMesh(sceneManager.getScene());
-    monitor_rightInterface.position.set(10, 1, 5);
-    monitor_rightInterface.rotateY(-0.65);
-
     avatarInterface = new AvatarInterface();
     await avatarInterface.createInterface(sceneManager.getScene());
+
+    outputInterface = new OutputInterface();
+    await outputInterface.createInterface(sceneManager.getScene());
+    
+    // Connect terminal to output interface
+    // Here, we will connect to LLM output interface
+    terminalInterface.onCommandSubmitted = (command) => {
+      outputInterface.streamText(`Command executed: ${command}`);
+    };
+
     
 
 
@@ -59,9 +74,8 @@ async function init() {
       postProcessing.updateSize(sizes);
     });
     
-    terminalInterface.setupKeyboardListeners();
-    terminalInterface.updateInterfaceWithText('');
-    
+    terminalInterface.updateInterfaceWithText("");
+
     const light = sceneManager.light;
     const light2 = sceneManager.light2;
     const flickerTimeline = Animations.createLightFlicker(light, light2, 300);
@@ -72,6 +86,9 @@ async function init() {
       avatarInterface.startLoadingAnimation(2000).then(() => {
       terminalInterface.isTyping = true;
       terminalInterface.updateInterfaceWithText("");
+      terminalInterface.setupKeyboardListeners();
+
+      outputInterface.streamText(tutorialText);
       });
     });
 

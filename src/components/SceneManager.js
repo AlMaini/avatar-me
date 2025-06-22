@@ -136,7 +136,7 @@ export class SceneManager {
 
   setupEventListeners() {
     window.addEventListener('resize', this.handleResize);
-    window.addEventListener('mousemove', this.handleMouseMove);
+    //window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('keydown', this.handleKeyDown);
   }
 
