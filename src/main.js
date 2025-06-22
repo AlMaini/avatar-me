@@ -88,6 +88,10 @@ async function init() {
       terminalInterface.updateInterfaceWithText("");
       terminalInterface.setupKeyboardListeners();
 
+      // Change camera to right position slowly after startup animation completes
+      sceneManager.currentCameraIndex = 2; // Right camera
+      sceneManager.updateCameraToCurrentState();
+
       outputInterface.streamText(tutorialText);
       });
     });
