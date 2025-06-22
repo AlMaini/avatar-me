@@ -72,10 +72,10 @@ app.use(cors({
 // Claude API proxy endpoint
 app.post('/api/claude', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { messages } = req.body;
     
-    if (!message) {
-      return res.status(400).json({ error: 'Message is required' });
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Messages array is required' });
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -89,12 +89,7 @@ app.post('/api/claude', async (req, res) => {
         model: 'claude-3-5-haiku-latest',
         max_tokens: 4000,
         system: systemPrompt, // Use the full system prompt with resume data
-        messages: [
-          {
-            role: 'user',
-            content: message
-          }
-        ]
+        messages: messages
       })
     });
 

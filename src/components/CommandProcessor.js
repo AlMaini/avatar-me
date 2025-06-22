@@ -2,6 +2,8 @@ export class CommandProcessor {
   constructor() {
     this.apiUrl = 'http://localhost:3001/api/claude';
     this.outputInterface = null;
+    this.conversationHistory = [];
+    this.maxHistoryLength = 20; // Keep last 20 messages to prevent context overflow
   }
 
   setOutputInterface(outputInterface) {
@@ -18,7 +20,14 @@ export class CommandProcessor {
     try {
       this.sendToOutput('Processing command...');
       
-      const response = await this.sendToClaude(command);
+      // Add user message to conversation history
+      this.addToHistory('user', command);
+      
+      const response = await this.sendToClaude();
+      
+      // Add assistant response to conversation history
+      this.addToHistory('assistant', response);
+      
       this.sendToOutput(response);
     } catch (error) {
       console.error('Error processing command:', error);
@@ -26,13 +35,26 @@ export class CommandProcessor {
     }
   }
 
-  async sendToClaude(message) {
+  addToHistory(role, content) {
+    this.conversationHistory.push({ role, content });
+    
+    // Trim history if it gets too long (keep recent messages)
+    if (this.conversationHistory.length > this.maxHistoryLength) {
+      this.conversationHistory = this.conversationHistory.slice(-this.maxHistoryLength);
+    }
+  }
+
+  clearHistory() {
+    this.conversationHistory = [];
+  }
+
+  async sendToClaude() {
     const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({ messages: this.conversationHistory })
     });
 
     if (!response.ok) {

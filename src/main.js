@@ -12,7 +12,7 @@ import { CommandProcessor } from './components/CommandProcessor.js';
 
 let terminal;
 let monitor_right;
-let monitor_left
+let monitor_left;
 let sceneManager;
 let terminalInterface;
 let avatarInterface;
@@ -62,6 +62,18 @@ async function init() {
     
     // Connect terminal to command processor
     terminalInterface.onCommandSubmitted = (command) => {
+      // Handle special commands
+      if (command.toLowerCase() === 'clear') {
+        commandProcessor.clearHistory();
+        outputInterface.clearText();
+        outputInterface.streamText('Conversation history cleared.');
+        return;
+      }
+      if (command.toLowerCase() === 'resume') {
+        // Resume print animation
+        console.log('Resuming print animation...');
+      }
+      
       commandProcessor.processCommand(command);
     };
 
