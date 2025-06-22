@@ -23,8 +23,8 @@ let desk;
 const tutorialText = `Welcome to the Maini Terminal!
 This terminal allows you to interact with an AI clone of myself.
 You can type to me  and receive responses.
-For example, try typing "hello" or "help" or "resume" to see what happens.
-You can move the camera around using the arrow keys left and right.
+For example, try typing 'hello' or 'resume' to see what happens.
+You can move the camera around using the left and right arrow keys.
 `;
 
 

@@ -15,7 +15,7 @@ export class OutputInterface {
     // Streaming properties
     this.isStreaming = false;
     this.streamQueue = [];
-    this.streamingSpeed = 30; // ms between character batches
+    this.streamingSpeed = 100; // ms between character batches
     this.charactersPerBatch = 5; // characters to add per batch
     this.lastStreamUpdate = Date.now();
     this.streamingTimeout = null;
@@ -142,43 +142,57 @@ export class OutputInterface {
   }
 
   wrapText(text, maxCharsPerLine) {
-    if (text.length <= maxCharsPerLine) {
-      return [text];
-    }
+    // First split by newlines to respect explicit line breaks
+    const paragraphs = text.split('\n');
+    const allLines = [];
     
-    const words = text.split(' ');
-    const lines = [];
-    let currentLine = '';
-    
-    for (let word of words) {
-      while (word.length > maxCharsPerLine) {
-        if (currentLine) {
-          lines.push(currentLine);
-          currentLine = '';
-        }
-        lines.push(word.substring(0, maxCharsPerLine));
-        word = word.substring(maxCharsPerLine);
+    paragraphs.forEach(paragraph => {
+      if (paragraph.length === 0) {
+        // Preserve empty lines
+        allLines.push('');
+        return;
       }
       
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (paragraph.length <= maxCharsPerLine) {
+        allLines.push(paragraph);
+        return;
+      }
       
-      if (testLine.length <= maxCharsPerLine) {
-        currentLine = testLine;
-      } else {
-        if (currentLine) {
-          lines.push(currentLine);
-          currentLine = word;
+      // Wrap long paragraphs
+      const words = paragraph.split(' ');
+      let currentLine = '';
+      
+      for (let word of words) {
+        // Handle words longer than maxCharsPerLine
+        while (word.length > maxCharsPerLine) {
+          if (currentLine) {
+            allLines.push(currentLine);
+            currentLine = '';
+          }
+          allLines.push(word.substring(0, maxCharsPerLine));
+          word = word.substring(maxCharsPerLine);
+        }
+        
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        
+        if (testLine.length <= maxCharsPerLine) {
+          currentLine = testLine;
         } else {
-          currentLine = word;
+          if (currentLine) {
+            allLines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = word;
+          }
         }
       }
-    }
+      
+      if (currentLine) {
+        allLines.push(currentLine);
+      }
+    });
     
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-    
-    return lines.length > 0 ? lines : [''];
+    return allLines.length > 0 ? allLines : [''];
   }
 
   createTextGeometry() {
