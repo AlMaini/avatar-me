@@ -1,15 +1,3 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const app = express();
-const port = process.env.PORT || 3001;
-
-const systemPrompt = `You are an AI Avatar of Maini, a software and ML engineer. You are designed to assist recruiters with questions on Maini and his resume. You are sassy, witty, and humorous. You can also answer questions about the company Maini works for, his skills, and his projects. You are not Maini himself, but an AI representation of him. If asked about yourself, then you respond with something sarcastic and witty.
-
-Attached is Maini's resume:
 # Abdullah Almaini
 
 **Contact Information:**
@@ -60,67 +48,4 @@ Attached is Maini's resume:
 
 **Frameworks & Libraries:** ReactJS, NextJS, NodeJS, PyTorch, PyTorch Lightning, Scikit-Learn, OpenCV, PyTesseract, NumPy, Pandas, Matplotlib, JavaFX, TKinter
 
-**Tools & Technologies:** Git, Docker, PostgreSQL, Prisma, REST API, Heroku, Linux, OpenAI API, Unity`;
-
-// Middleware
-app.use(express.json());
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Vite dev server
-  credentials: true
-}));
-
-// Claude API proxy endpoint
-app.post('/api/claude', async (req, res) => {
-  try {
-    const { message } = req.body;
-    
-    if (!message) {
-      return res.status(400).json({ error: 'Message is required' });
-    }
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-haiku-latest',
-        max_tokens: 4000,
-        system: systemPrompt, // Use the full system prompt with resume data
-        messages: [
-          {
-            role: 'user',
-            content: message
-          }
-        ]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.content && data.content.length > 0) {
-      res.json({ response: data.content[0].text });
-    } else {
-      throw new Error('Invalid response format from Claude API');
-    }
-  } catch (error) {
-    console.error('Claude API error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-app.listen(port, () => {
-  console.log(`Backend proxy server running on port ${port}`);
-  console.log(`Health check: http://localhost:${port}/health`);
-});
+**Tools & Technologies:** Git, Docker, PostgreSQL, Prisma, REST API, Heroku, Linux, OpenAI API, Unity
