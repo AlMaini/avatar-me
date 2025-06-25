@@ -78,6 +78,13 @@ app.post('/api/claude', async (req, res) => {
       return res.status(400).json({ error: 'Messages array is required' });
     }
 
+    // Check if API key is configured
+    if (!process.env.CLAUDE_API_KEY) {
+      console.error('CLAUDE_API_KEY is not configured');
+      return res.status(500).json({ error: 'API key not configured' });
+    }
+
+    console.log('Making request to Claude API...');
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -93,8 +100,12 @@ app.post('/api/claude', async (req, res) => {
       })
     });
 
+    console.log(`Claude API response status: ${response.status}`);
+    
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Claude API error response:', errorText);
+      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
