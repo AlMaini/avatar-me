@@ -8,6 +8,7 @@ import { Animations } from './components/Animations.js';
 import { loadCustomFont } from './utils/FontLoader.js';
 import { OutputInterface } from './components/OutputInterface.js';
 import { CommandProcessor } from './components/CommandProcessor.js';
+import { DustParticles } from './components/DustParticles.js';
 
 
 let terminal;
@@ -21,6 +22,7 @@ let postProcessing;
 let modelLoader;
 let desk;
 let commandProcessor;
+let dustParticles;
 
 const tutorialText = `Welcome to the Maini Terminal!
 This terminal allows you to interact with an AI clone of myself.
@@ -55,6 +57,10 @@ async function init() {
 
     outputInterface = new OutputInterface();
     await outputInterface.createInterface(sceneManager.getScene());
+    
+    // Initialize dust particles
+    dustParticles = new DustParticles();
+    dustParticles.init(sceneManager.getScene());
     
     // Initialize command processor
     commandProcessor = new CommandProcessor();
@@ -129,6 +135,7 @@ async function init() {
       if (deltaTime >= targetFrameTime) {
         sceneManager.update(deltaTime);
         avatarInterface.update(deltaTime);
+        dustParticles.update(deltaTime);
         postProcessing.render();
         lastTime = currentTime - (deltaTime % targetFrameTime);
       }

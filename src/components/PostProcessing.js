@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { PixelShader } from '../shaders/PixelShader.js';
+import { MoodyShader } from '../shaders/MoodyShader.js';
 
 export class PostProcessing {
   constructor(renderer, scene, camera, sizes) {
@@ -30,12 +31,14 @@ export class PostProcessing {
     this.pixelPass.uniforms.resolution.value.set(this.sizes.width, this.sizes.height);
     
     // Cache computed pixel size
-    this.cachedPixelSize = Math.max(1, Math.floor(this.sizes.width / 880));
-    this.lastWidth = this.sizes.width;
-    this.pixelPass.uniforms.pixelSize.value = this.cachedPixelSize;
+    // this.cachedPixelSize = Math.max(1, Math.floor(this.sizes.width / 880));
+    // this.lastWidth = this.sizes.width;
+    // this.pixelPass.uniforms.pixelSize.value = this.cachedPixelSize;
     
-    this.pixelPass.enabled = true;
-    this.composer.addPass(this.pixelPass);
+    // this.pixelPass.enabled = true;
+    // this.composer.addPass(this.pixelPass);
+
+    this.composer.addPass(new ShaderPass(MoodyShader));
 
   }
 

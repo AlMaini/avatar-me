@@ -43,8 +43,8 @@ export class SceneManager {
   }
 
   initScene() {
-    this.camera.position.set(50, 0, 50);
-    
+    // this.camera.position.set(50, 0, 50);
+    this.camera.position.set(0, 0, 200);
 
     this.scene.add(this.camera);
 
