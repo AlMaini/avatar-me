@@ -65,7 +65,7 @@ Attached is Maini's resume:
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Vite dev server
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://avatar-me.netlify.app/'], // Vite dev server
   credentials: true
 }));
 
