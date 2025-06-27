@@ -8,7 +8,7 @@ export class ModelLoader {
   async loadTerminal(scene) {
     return new Promise((resolve, reject) => {
       this.loader.load(
-        './fixed_terminal_2/fixed_terminal.gltf',
+        './fixed_terminal_3/terminal.gltf',
         (gltf) => {
           const terminal = gltf.scene;
           terminal.scale.set(0.4, 0.4, 0.4);
@@ -26,7 +26,7 @@ export class ModelLoader {
   async loadMonitor(scene) {
     return new Promise((resolve, reject) => {
       this.loader.load(
-        './monitor_2/monitor.gltf',
+        './monitor/monitor.gltf',
         (gltf) => {
           const monitor = gltf.scene;
           monitor.scale.set(1.3, 1.3, 1.3);
