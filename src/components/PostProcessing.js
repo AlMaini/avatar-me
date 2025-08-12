@@ -32,14 +32,14 @@ export class PostProcessing {
     
     // Cache computed pixel size
     // this.cachedPixelSize = Math.max(1, Math.floor(this.sizes.width / 760));
-    this.cachedPixelSize = 2;
-    this.lastWidth = this.sizes.width;
-    this.pixelPass.uniforms.pixelSize.value = this.cachedPixelSize;
+    // this.cachedPixelSize = 2;
+    // this.lastWidth = this.sizes.width;
+    // this.pixelPass.uniforms.pixelSize.value = this.cachedPixelSize;
     
-    this.pixelPass.enabled = true;
-    this.composer.addPass(this.pixelPass);
+    // this.pixelPass.enabled = true;
+    // this.composer.addPass(this.pixelPass);
 
-    // this.composer.addPass(new ShaderPass(MoodyShader));
+    this.composer.addPass(new ShaderPass(MoodyShader));
 
   }
 

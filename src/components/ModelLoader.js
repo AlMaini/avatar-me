@@ -58,4 +58,22 @@ export class ModelLoader {
       );
     });
   }
+
+  async loadPrinter(scene) {
+    return new Promise((resolve, reject) => {
+      this.loader.load(
+        './generic_printer/scene.gltf',
+        (gltf) => {
+          const printer = gltf.scene;
+          printer.scale.set(2,2,2);
+          printer.position.set(12, -5, 5);
+          printer.rotateY(-2.2);
+          scene.add(printer);
+          resolve(printer);
+        },
+        undefined,
+        reject
+      );
+    });
+  }
 }

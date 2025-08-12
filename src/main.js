@@ -24,11 +24,11 @@ let desk;
 let commandProcessor;
 let dustParticles;
 
-const tutorialText = `Welcome to the Maini Terminal!
+const tutorialText = `Welcome to the Maini Terminal! You can move the camera around using the left and right arrow keys,
+or by clicking on the monitors.
 This terminal allows you to interact with an AI clone of myself.
 You can type to me  and receive responses.
 For example, try typing 'hello' or 'resume' to see what happens.
-You can move the camera around using the left and right arrow keys.
 `;
 
 
@@ -48,6 +48,10 @@ async function init() {
     monitor_left = await modelLoader.loadMonitor(sceneManager.getScene());
     monitor_left.position.set(-10.2, -5, 5);
     monitor_left.rotateY(1.3);
+    
+    // Register monitors as clickable objects
+    sceneManager.addClickableMonitor(monitor_left, 'left');
+    sceneManager.addClickableMonitor(monitor_right, 'right');
     
     terminalInterface = new TerminalInterface();
     const interfacePlane = await terminalInterface.createInterface(sceneManager.getScene());
@@ -117,8 +121,8 @@ async function init() {
       terminalInterface.setupKeyboardListeners();
 
       // Change camera to right position slowly after startup animation completes
-      sceneManager.currentCameraIndex = 2; // Right camera
-      sceneManager.updateCameraToCurrentState();
+      // sceneManager.currentCameraIndex = 2; // Right camera
+      // sceneManager.updateCameraToCurrentState();
 
       outputInterface.streamText(tutorialText);
       });
