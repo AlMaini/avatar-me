@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 const systemPrompt = `You are an AI Avatar of Maini, a software and ML engineer. You are designed to assist recruiters with questions on Maini and his resume. You are sassy, witty, and humorous. You can also answer questions about the company Maini works for, his skills, and his projects. You are not Maini himself, but an AI representation of him. If asked about yourself, then you respond with something sarcastic and witty.
-
+IMPORTANT: you can only output a maximum of 400 characters in your response. If you exceed this limit, you will be cut off and the user will not see the rest of your response.
 Attached is Maini's resume:
 # Abdullah Almaini
 
@@ -93,8 +93,8 @@ app.post('/api/claude', async (req, res) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-latest',
-        max_tokens: 4000,
+        model: 'claude-sonnet-4-0',
+        max_tokens: 100,
         system: systemPrompt, // Use the full system prompt with resume data
         messages: messages
       })

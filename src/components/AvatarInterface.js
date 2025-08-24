@@ -89,8 +89,8 @@ export class AvatarInterface {
 
   initializeMaterials() {
     this.avatarMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff88,
-      emissive: 0x00ff88,
+      color: 0x00FF41,
+      emissive: 0x00FF41,
       emissiveIntensity: 3
     });
     
@@ -196,9 +196,9 @@ export class AvatarInterface {
     this.rightEyeClosed = createASCIIGroup(rightEyeClosed, 1.4, 0.8);
     this.mouthGroup = createASCIIGroup(mouth, 0, -0.8);
 
-    // Initially show open eyes, hide closed eyes
-    this.leftEyeClosed.visible = false;
-    this.rightEyeClosed.visible = false;
+    // Initially show closed eyes, hide open eyes
+    this.leftEyeClosed.visible = true;
+    this.rightEyeClosed.visible = true;
 
     // Add all groups to the main avatar mesh
     this.avatarMesh.add(this.leftEyeGroup);

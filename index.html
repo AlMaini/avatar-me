@@ -7,10 +7,32 @@
   <style>
     body { margin: 0; }
     canvas { display: block; }
+    #arrow-keys {
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%) scale(0.10);
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    #arrow-keys.show {
+      opacity: 1;
+    }
+    #arrow-keys.blink {
+      animation: softBlink 2s infinite;
+    }
+    @keyframes softBlink {
+      0%, 50% { opacity: 1; }
+      75% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
   </style>
 </head>
 <body>
   <canvas class="webgl"></canvas>
+  <img id="arrow-keys" src="/arrow_keys.png" alt="Arrow Keys" />
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

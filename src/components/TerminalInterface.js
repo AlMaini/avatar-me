@@ -77,14 +77,14 @@ export class TerminalInterface {
 
   initializeMaterials() {
     this.textMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff88,
-      emissive: 0x00ff88,
+      color: 0x00FF41,
+      emissive: 0x00FF41,
       emissiveIntensity: 3
     });
     
     this.cursorMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff88,
-      emissive: 0x00ff88,
+      color: 0x00FF41,
+      emissive: 0x00FF41,
       emissiveIntensity: 3
     });
   }

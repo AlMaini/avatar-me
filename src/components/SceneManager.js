@@ -32,19 +32,24 @@ export class SceneManager {
     this.currentCameraIndex = 1;
     this.currentCameraTarget = { ...this.cameraPositions.center };
     this.currentRotationTarget = { ...this.cameraRotations.center };
+
+    // Raycasting for click detection
+    this.raycaster = new THREE.Raycaster();
+    this.clickableObjects = []; // Will store monitor objects
     
     // Bind event handlers
     this.handleResize = this.handleResize.bind(this);
     this.handleMouseMove = this.handleMouseMove.bind(this);
     this.handleKeyDown = this.handleKeyDown.bind(this);
+    this.handleClick = this.handleClick.bind(this);
     
     this.initScene();
     this.setupEventListeners();
   }
 
   initScene() {
-    // this.camera.position.set(50, 0, 50);
-    this.camera.position.set(0, 0, 200);
+    this.camera.position.set(50, 0, 50);
+    // this.camera.position.set(0, 0, 200);
 
     this.scene.add(this.camera);
 
@@ -110,6 +115,7 @@ export class SceneManager {
     
     switch (event.key) {
       case 'ArrowLeft':
+        this.onArrowKeysHide?.();
         if (this.currentCameraIndex > 0) {
           this.isMoving = true;
           this.currentCameraIndex--;
@@ -122,6 +128,7 @@ export class SceneManager {
         break;
         
       case 'ArrowRight':
+        this.onArrowKeysHide?.();
         if (this.currentCameraIndex < this.cameraStates.length - 1) {
           this.isMoving = true;
           this.currentCameraIndex++;
@@ -135,10 +142,74 @@ export class SceneManager {
     }
   }
 
+  handleClick(event) {
+    // If already moving, don't allow camera change
+    if (this.isMoving) return;
+
+    // If in left or right position, any click resets to center
+    if (this.currentCameraIndex === 0 || this.currentCameraIndex === 2) {
+      this.isMoving = true;
+      this.currentCameraIndex = 1; // center
+      this.updateCameraToCurrentState();
+      
+      setTimeout(() => {
+        this.isMoving = false;
+      }, 300);
+      return;
+    }
+
+    // Only do raycasting when in center position
+    // Convert mouse coordinates to normalized device coordinates
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    // Set up the raycaster
+    this.raycaster.setFromCamera({ x: mouseX, y: mouseY }, this.camera);
+
+    // Calculate objects intersecting the picking ray
+    const intersects = this.raycaster.intersectObjects(this.clickableObjects, true);
+
+    if (intersects.length > 0) {
+      const clickedObject = intersects[0].object;
+      
+      // Find the parent monitor object
+      let monitorObject = clickedObject;
+      while (monitorObject.parent && !monitorObject.userData.isMonitor) {
+        monitorObject = monitorObject.parent;
+      }
+
+      if (monitorObject.userData.isMonitor) {
+        this.handleMonitorClick(monitorObject.userData.monitorType);
+      }
+    }
+  }
+
+  handleMonitorClick(monitorType) {
+    this.isMoving = true;
+    
+    // Only called from center position, so just move to the clicked monitor
+    switch (monitorType) {
+      case 'left':
+        this.currentCameraIndex = 0; // left
+        break;
+      case 'right':
+        this.currentCameraIndex = 2; // right
+        break;
+    }
+    
+    this.updateCameraToCurrentState();
+    
+    setTimeout(() => {
+      this.isMoving = false;
+    }, 300);
+  }
+
   setupEventListeners() {
     window.addEventListener('resize', this.handleResize);
     window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('keydown', this.handleKeyDown);
+    window.addEventListener('click', this.handleClick);
   }
 
   setResizeCallback(callback) {
@@ -147,6 +218,17 @@ export class SceneManager {
 
   setMouseMoveCallback(callback) {
     this.onMouseMove = callback;
+  }
+
+  setArrowKeysHideCallback(callback) {
+    this.onArrowKeysHide = callback;
+  }
+
+  addClickableMonitor(monitorObject, monitorType) {
+    // Mark the monitor object and add it to clickable objects
+    monitorObject.userData.isMonitor = true;
+    monitorObject.userData.monitorType = monitorType;
+    this.clickableObjects.push(monitorObject);
   }
 
   getScene() {
@@ -237,6 +319,7 @@ export class SceneManager {
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('click', this.handleClick);
     
     // Dispose of controls if they exist
     if (this.controls) {
@@ -252,5 +335,8 @@ export class SceneManager {
     if (this.scene) {
       this.scene.clear();
     }
+    
+    // Clear clickable objects
+    this.clickableObjects = [];
   }
 }

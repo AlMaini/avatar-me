@@ -8,7 +8,7 @@ export class ModelLoader {
   async loadTerminal(scene) {
     return new Promise((resolve, reject) => {
       this.loader.load(
-        './fixed_terminal_2/fixed_terminal.gltf',
+        './fixed_terminal_3/terminal.gltf',
         (gltf) => {
           const terminal = gltf.scene;
           terminal.scale.set(0.4, 0.4, 0.4);
@@ -26,7 +26,7 @@ export class ModelLoader {
   async loadMonitor(scene) {
     return new Promise((resolve, reject) => {
       this.loader.load(
-        './monitor_2/monitor.gltf',
+        './monitor/monitor.gltf',
         (gltf) => {
           const monitor = gltf.scene;
           monitor.scale.set(1.3, 1.3, 1.3);
@@ -52,6 +52,24 @@ export class ModelLoader {
           desk.rotateY(-2.2);
           scene.add(desk);
           resolve(desk);
+        },
+        undefined,
+        reject
+      );
+    });
+  }
+
+  async loadPrinter(scene) {
+    return new Promise((resolve, reject) => {
+      this.loader.load(
+        './generic_printer/scene.gltf',
+        (gltf) => {
+          const printer = gltf.scene;
+          printer.scale.set(2,2,2);
+          printer.position.set(12, -5, 5);
+          printer.rotateY(-2.2);
+          scene.add(printer);
+          resolve(printer);
         },
         undefined,
         reject
