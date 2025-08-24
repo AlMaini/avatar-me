@@ -31,6 +31,20 @@ You can type to me  and receive responses.
 For example, try typing 'hello' or 'resume' to see what happens.
 `;
 
+function showArrowKeys() {
+  const arrowKeysElement = document.getElementById('arrow-keys');
+  if (arrowKeysElement) {
+    arrowKeysElement.classList.add('show', 'blink');
+  }
+}
+
+function hideArrowKeys() {
+  const arrowKeysElement = document.getElementById('arrow-keys');
+  if (arrowKeysElement) {
+    arrowKeysElement.classList.remove('show', 'blink');
+  }
+}
+
 
 async function init() {
   try {
@@ -52,6 +66,9 @@ async function init() {
     // Register monitors as clickable objects
     sceneManager.addClickableMonitor(monitor_left, 'left');
     sceneManager.addClickableMonitor(monitor_right, 'right');
+    
+    // Set arrow keys hide callback
+    sceneManager.setArrowKeysHideCallback(hideArrowKeys);
     
     terminalInterface = new TerminalInterface();
     const interfacePlane = await terminalInterface.createInterface(sceneManager.getScene());
@@ -125,6 +142,9 @@ async function init() {
       // sceneManager.updateCameraToCurrentState();
 
       outputInterface.streamText(tutorialText);
+      
+      // Show arrow keys with blinking animation after startup completes
+      showArrowKeys();
       });
     });
 

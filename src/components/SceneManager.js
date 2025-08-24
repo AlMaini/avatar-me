@@ -115,6 +115,7 @@ export class SceneManager {
     
     switch (event.key) {
       case 'ArrowLeft':
+        this.onArrowKeysHide?.();
         if (this.currentCameraIndex > 0) {
           this.isMoving = true;
           this.currentCameraIndex--;
@@ -127,6 +128,7 @@ export class SceneManager {
         break;
         
       case 'ArrowRight':
+        this.onArrowKeysHide?.();
         if (this.currentCameraIndex < this.cameraStates.length - 1) {
           this.isMoving = true;
           this.currentCameraIndex++;
@@ -216,6 +218,10 @@ export class SceneManager {
 
   setMouseMoveCallback(callback) {
     this.onMouseMove = callback;
+  }
+
+  setArrowKeysHideCallback(callback) {
+    this.onArrowKeysHide = callback;
   }
 
   addClickableMonitor(monitorObject, monitorType) {
